@@ -1,138 +1,179 @@
-import React, { useState, useEffect } from 'react';
-import { getData, addRecord } from '../services/storage';
-import { calcDriverSalary, calcNetPay } from '../services/calculations';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getData, addRecord, addPayment, updateRecord } from '../services/storage';
 import { generateId } from '../utils/idGenerator';
 import { formatCurrency } from '../utils/formatters';
+import { getPaymentStatus } from '../services/calculations';
 import SelectField from '../components/common/SelectField';
 import InputField from '../components/common/InputField';
 import Button from '../components/common/Button';
+import Badge from '../components/common/Badge';
+import PaymentHistory from '../components/common/PaymentHistory';
 
-const SalaryDriver = () => {
+const SalaryDriver = ({ userId }) => {
   const [drivers, setDrivers] = useState([]);
   const [allLogs, setAllLogs] = useState([]);
-  const [salaryHistory, setSalaryHistory] = useState([]);
-  const [success, setSuccess] = useState(false);
-
+  const [salaries, setSalaries] = useState([]);
+  const [activeSalId, setActiveSalId] = useState(null);
+  
   const [formData, setFormData] = useState({
-    driverId: '',
+    date: new Date().toISOString().split('T')[0],
+    driverId: userId || '',
     bonus: 0,
-    extraPay: 0,
+    extraAmount: 0,
     advance: 0,
-    notes: ''
+    description: ''
   });
 
   useEffect(() => {
     setDrivers(getData('rl_drivers'));
     setAllLogs(getData('rl_driver_logs'));
-    setSalaryHistory(getData('rl_driver_salary'));
+    setSalaries(getData('rl_driver_salary'));
   }, []);
 
-  // Compute current stats for selected driver
-  const driver = drivers.find(d => d.id === formData.driverId);
-  
-  // Calculate total hours worked that haven't been paid yet? 
-  // For simplicity per SRS, we calculate based on ALL logs found for now, 
-  // or the user can enter the hours manually if they prefer.
-  // Actually, let's auto-sum hours for the driver.
-  const totalHoursWorked = allLogs
-    .filter(log => log.driverId === formData.driverId) // Note: Driver IDs are usually linked in Logs
-    // Wait, my DriverEntry doesn't have a Driver ID select yet? 
-    // Ah, Day 4 DriverEntry used 'machineType', 'farmerId', 'date', 'sessions', 'diesel'.
-    // It didn't ask for 'driverId' because we assumed the driver is the one using the PWA.
-    // However, the Admin needs to select which driver to pay.
-    // Let's assume for now we pull logs where machine logs were recorded.
-    .reduce((sum, log) => sum + log.totalHours, 0);
+  // Filter logs for the selected driver that have NO linkedSalaryId
+  const availableLogs = useMemo(() => {
+    if (!formData.driverId) return [];
+    return allLogs.filter(log => log.driverId === formData.driverId && !log.linkedSalaryId);
+  }, [formData.driverId, allLogs]);
 
-  const baseSalary = calcDriverSalary(totalHoursWorked, driver?.salaryRatePerHour || 0);
-  const netPay = calcNetPay(baseSalary, formData.bonus, formData.extraPay, formData.advance);
+  const selectedDriver = drivers.find(d => d.id === formData.driverId);
+  const totalHours = availableLogs.reduce((sum, log) => sum + (log.totalHours || 0), 0);
+  const baseSalary = totalHours * (selectedDriver?.salaryRatePerHour || 0);
+  const netPay = (baseSalary + parseFloat(formData.bonus || 0) + parseFloat(formData.extraAmount || 0)) - parseFloat(formData.advance || 0);
 
   const handleSave = (e) => {
     e.preventDefault();
-    if (!formData.driverId) return;
+    if (availableLogs.length === 0) {
+      alert('No unpaid work logs found for this driver.');
+      return;
+    }
 
+    const salId = generateId('rl_driver_salary');
     const salaryRecord = {
       ...formData,
-      id: generateId('rl_driver_salary'),
-      date: new Date().toISOString().split('T')[0],
-      totalHours: totalHoursWorked,
+      id: salId,
+      totalHours,
       baseSalary,
       netPay,
-      status: 'paid'
+      logIds: availableLogs.map(l => l.id),
+      payments: [], // Support partial payments (SRS pattern)
+      status: 'active'
     };
 
+    // 1. Save salary record
     addRecord('rl_driver_salary', salaryRecord);
-    setSalaryHistory([salaryRecord, ...salaryHistory]);
-    setSuccess(true);
-    setFormData({ driverId: '', bonus: 0, extraPay: 0, advance: 0, notes: '' });
-    setTimeout(() => setSuccess(false), 3000);
+    
+    // 2. Mark logs as paid
+    const updatedLogs = allLogs.map(log => {
+      if (salaryRecord.logIds.includes(log.id)) {
+        return { ...log, linkedSalaryId: salId };
+      }
+      return log;
+    });
+    // We need an updateAllRecords or similar, but for now we'll do it manually in storage or loop
+    // Actually, updateRecord is for one record. I'll loop.
+    salaryRecord.logIds.forEach(id => {
+        const log = allLogs.find(l => l.id === id);
+        if (log) {
+            updateRecord('rl_driver_logs', id, { ...log, linkedSalaryId: salId });
+        }
+    });
+
+    setSalaries(getData('rl_driver_salary'));
+    setAllLogs(getData('rl_driver_logs'));
+    setFormData({ ...formData, bonus: 0, extraAmount: 0, advance: 0, description: '' });
+    alert('Salary record created successfully!');
   };
+
+  const handleAddPayment = (id, payment) => {
+    addPayment('rl_driver_salary', id, payment);
+    setSalaries(getData('rl_driver_salary'));
+  };
+
+  const isReadOnly = !!userId;
 
   return (
     <div className="app-container">
       <h1>ஓட்டுநர் சம்பளம் (Driver Salary)</h1>
 
-      {success && <div className="success-message">வெற்றிகரமாக சேமிக்கப்பட்டது (Successfully Saved)</div>}
-
-      <form onSubmit={handleSave} className="card">
-        <SelectField 
-          english="Select Driver" tamil="ஓட்டுநரைத் தேர்ந்தெடுக்கவும்"
-          options={drivers.map(d => ({ value: d.id, label: d.name }))}
-          value={formData.driverId}
-          onChange={(e) => setFormData({...formData, driverId: e.target.value})}
-          required
-        />
-
-        {driver && (
-          <div style={{ marginTop: '10px', padding: '10px', background: '#F7FAFC', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Total Hours worked:</span>
-              <strong>{totalHoursWorked.toFixed(2)} Hrs</strong>
+      {!isReadOnly && (
+        <form onSubmit={handleSave} className="card">
+          <h3>New Salary Calculation</h3>
+          <InputField 
+            english="Date" tamil="தேதி" type="date" 
+            value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required 
+          />
+          <SelectField 
+            english="Select Driver" tamil="ஓட்டுநர்"
+            options={drivers.map(d => ({ value: d.id, label: d.name }))}
+            value={formData.driverId}
+            onChange={(e) => setFormData({...formData, driverId: e.target.value})}
+            required
+          />
+          
+          <div style={{ background: '#F7FAFC', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <span>Unpaid Hours:</span>
+              <span style={{ fontWeight: 'bold' }}>{totalHours.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Rate Per Hour:</span>
-              <strong>₹ {driver.salaryRatePerHour}</strong>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <span>Rate/Hr:</span>
+              <span>{selectedDriver?.salaryRatePerHour || 0}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px', borderTop: '1px solid #edf2f7', paddingTop: '5px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 'bold', color: '#1B3A6B' }}>
               <span>Base Salary:</span>
-              <strong>{formatCurrency(baseSalary)}</strong>
+              <span>{formatCurrency(baseSalary)}</span>
             </div>
           </div>
-        )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '15px' }}>
-          <InputField 
-            english="Bonus" tamil="போனஸ் (+)" type="number" value={formData.bonus}
-            onChange={(e) => setFormData({...formData, bonus: parseFloat(e.target.value) || 0})}
-          />
-          <InputField 
-            english="Extra Pay" tamil="கூடுதல் (+)" type="number" value={formData.extraPay}
-            onChange={(e) => setFormData({...formData, extraPay: parseFloat(e.target.value) || 0})}
-          />
-        </div>
-        <InputField 
-          english="Advance" tamil="முன்பணம் (-)" type="number" value={formData.advance}
-          onChange={(e) => setFormData({...formData, advance: parseFloat(e.target.value) || 0})}
-        />
-        
-        <div style={{ margin: '15px 0', padding: '15px', background: '#E6FFFA', borderRadius: '8px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.9rem', color: '#2C7A7B' }}>Net Payable Amount</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#234E52' }}>{formatCurrency(netPay)}</div>
-        </div>
-
-        <Button type="submit" fullWidth>சம்பளம் வழங்கப்பட்டது (CONFIRM PAYMENT)</Button>
-      </form>
-
-      <div style={{ marginTop: '30px' }}>
-        <h3>சம்பள வரலாறு (Salary History)</h3>
-        {salaryHistory.map(s => (
-          <div key={s.id} className="card" style={{ padding: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <strong>{drivers.find(d => d.id === s.driverId)?.name}</strong>
-              <span style={{ color: '#2F855A', fontWeight: 'bold' }}>{formatCurrency(s.netPay)}</span>
-            </div>
-            <div style={{ fontSize: '0.85rem', color: '#718096' }}>{s.date} | Hours: {s.totalHours.toFixed(2)}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <InputField english="Bonus" tamil="போனஸ்" type="number" value={formData.bonus} onChange={(e) => setFormData({...formData, bonus: e.target.value})} />
+            <InputField english="Extra" tamil="கூடுதல்" type="number" value={formData.extraAmount} onChange={(e) => setFormData({...formData, extraAmount: e.target.value})} />
           </div>
-        ))}
+          <InputField english="Advance" tamil="முன்பணம்" type="number" value={formData.advance} onChange={(e) => setFormData({...formData, advance: e.target.value})} />
+          
+          <div style={{ padding: '15px', background: '#F0FFF4', borderRadius: '8px', marginBottom: '20px', textAlign: 'center' }}>
+            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1A6B55' }}>Net Payable: {formatCurrency(netPay)}</span>
+          </div>
+
+          <Button type="submit" fullWidth>Confirm Salary (சம்பளம் உறுதிசெய்)</Button>
+        </form>
+      )}
+
+      <div className="list-container">
+        <h3>{isReadOnly ? 'My Salary History (சம்பள விவரம்)' : 'சம்பள பதிவுகள் (Salary Records)'}</h3>
+        {salaries.filter(s => !userId || s.driverId === userId).map(sal => {
+          const driver = drivers.find(d => d.id === sal.driverId);
+          const isExpanded = activeSalId === sal.id;
+          const status = getPaymentStatus(sal.netPay, sal.payments);
+          const paid = (sal.payments || []).reduce((sum, p) => sum + p.amount, 0);
+
+          return (
+            <div key={sal.id} className="card" onClick={() => setActiveSalId(isExpanded ? null : sal.id)} style={{ cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 'bold' }}>{driver?.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#718096' }}>{sal.date} | {sal.totalHours.toFixed(2)} Hrs</div>
+                </div>
+                <Badge status={status} />
+              </div>
+              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                <span>Net: {formatCurrency(sal.netPay)}</span>
+                <span style={{ color: '#C53030' }}>Due: {formatCurrency(sal.netPay - paid)}</span>
+              </div>
+              
+              {isExpanded && (
+                <div onClick={e => e.stopPropagation()} style={{ marginTop: '15px' }}>
+                  <PaymentHistory 
+                    payments={sal.payments} 
+                    totalAmount={sal.netPay} 
+                    onAddPayment={(p) => handleAddPayment(sal.id, p)}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

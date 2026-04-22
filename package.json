@@ -10,7 +10,9 @@
     "preview": "node node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
+    "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.1",
+    "pdfmake": "^0.3.7",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.1",

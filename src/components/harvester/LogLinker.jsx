@@ -27,8 +27,8 @@ const LogLinker = ({ logs, selectedIds, onToggle, farmers }) => {
                 readOnly 
               />
               <div className={styles.info}>
-                <span className={styles.date}>{log.date}</span>
-                <span className={styles.hours}>{log.totalHours.toFixed(2)} Hrs</span>
+                <span className={styles.date}>{log.date || 'N/A'}</span>
+                <span className={styles.hours}>{(parseFloat(log.totalHours) || 0).toFixed(2)} Hrs</span>
                 <span className={styles.logId}>{log.id}</span>
               </div>
             </div>

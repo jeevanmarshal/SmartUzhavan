@@ -1,26 +1,22 @@
 import React from 'react';
 import styles from './SessionEntry.module.css';
-import Button from '../common/Button';
+import TimePicker from '../common/TimePicker';
 
 const SessionEntry = ({ index, session, onChange, onRemove }) => {
   return (
     <div className={styles.row}>
       <div className={styles.inputGroup}>
-        <label className={styles.innerLabel}>Start (தொடக்கம்)</label>
-        <input 
-          type="time" 
+        <TimePicker 
+          label="Start (தொடக்கம்)" 
           value={session.start} 
-          onChange={(e) => onChange(index, 'start', e.target.value)}
-          className={styles.timeInput}
+          onChange={(val) => onChange(index, 'start', val)} 
         />
       </div>
       <div className={styles.inputGroup}>
-        <label className={styles.innerLabel}>End (முடிவு)</label>
-        <input 
-          type="time" 
+        <TimePicker 
+          label="End (முடிவு)" 
           value={session.end} 
-          onChange={(e) => onChange(index, 'end', e.target.value)}
-          className={styles.timeInput}
+          onChange={(val) => onChange(index, 'end', val)} 
         />
       </div>
       <div className={styles.duration}>

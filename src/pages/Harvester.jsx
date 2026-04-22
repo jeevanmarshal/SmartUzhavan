@@ -24,6 +24,7 @@ const Harvester = () => {
   const [activeJobId, setActiveJobId] = useState(null);
 
   const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
     farmerId: '',
     season: 'KUR',
     seasonYear: new Date().getFullYear(),
@@ -67,19 +68,35 @@ const Harvester = () => {
     });
 
     return allLogs.filter(log => 
+      log.driverId && 
       log.farmerId === formData.farmerId && 
-      log.machineType.includes(formData.machineType) &&
+      (log.machineType || '').includes(formData.machineType) &&
       !linkedIds.has(log.id)
     );
   }, [formData.farmerId, formData.machineType, allLogs, allJobs]);
 
   const selectedLogsData = allLogs.filter(l => formData.linkedLogIds.includes(l.id));
-  const totalHours = selectedLogsData.reduce((sum, l) => sum + l.totalHours, 0);
-  const dieselFromLogs = selectedLogsData.reduce((sum, l) => sum + l.diesel.total, 0);
-  const grossAmount = totalHours * formData.ratePerHour;
-  const finalAmount = Math.max(0, grossAmount - formData.discount);
-  const totalExpense = dieselFromLogs + (parseFloat(formData.additionalDiesel) || 0);
+  const totalHours = selectedLogsData.reduce((sum, l) => sum + (parseFloat(l.totalHours) || 0), 0);
+  const dieselFromLogs = selectedLogsData.reduce((sum, l) => sum + (parseFloat(l.diesel?.total) || 0), 0);
+  const grossAmount = totalHours * (parseFloat(formData.ratePerHour) || 0);
+  const finalAmount = Math.max(0, grossAmount - (parseFloat(formData.discount) || 0));
+  
+  const otherExpensesSum = formData.otherExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+  const totalExpense = dieselFromLogs + (parseFloat(formData.additionalDiesel) || 0) + otherExpensesSum;
   const netProfit = finalAmount - totalExpense;
+
+  const handleAddOtherExpense = () => {
+    setFormData({
+      ...formData,
+      otherExpenses: [...formData.otherExpenses, { label: '', amount: 0 }]
+    });
+  };
+
+  const handleOtherExpenseChange = (index, field, value) => {
+    const updated = [...formData.otherExpenses];
+    updated[index][field] = value;
+    setFormData({ ...formData, otherExpenses: updated });
+  };
 
   const handleToggleLog = (logId) => {
     setFormData(prev => {
@@ -107,6 +124,7 @@ const Harvester = () => {
       grossAmount,
       finalAmount,
       dieselFromLogs,
+      otherExpensesSum,
       totalExpense,
       netProfit,
       payments: [],
@@ -123,7 +141,8 @@ const Harvester = () => {
       farmerId: '',
       linkedLogIds: [],
       discount: 0,
-      additionalDiesel: 0
+      additionalDiesel: 0,
+      otherExpenses: []
     }));
 
     setTimeout(() => setSuccess(false), 3000);
@@ -146,6 +165,7 @@ const Harvester = () => {
       {showAddForm && (
         <form onSubmit={handleSave}>
           <div className="card">
+            <InputField english="Date" tamil="தேதி" type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required />
             <SelectField 
               english="Farmer" tamil="விவசாயி" 
               options={farmers.map(f => ({ value: f.id, label: `${f.name} (${f.village})` }))}
@@ -217,6 +237,21 @@ const Harvester = () => {
             <div style={{ padding: '10px', background: '#F0FFF4', borderRadius: '8px', margin: '10px 0' }}>
               <strong>Final Amount: ₹ {finalAmount.toFixed(2)}</strong>
             </div>
+
+            <div style={{ marginBottom: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <h4 style={{ margin: 0 }}>Other Expenses (இதர செலவுகள்)</h4>
+                    <button type="button" onClick={handleAddOtherExpense} style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>+ Add</button>
+                </div>
+                {formData.otherExpenses.map((exp, idx) => (
+                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 40px', gap: '10px', marginBottom: '10px' }}>
+                        <input placeholder="Label (e.g. Mechanic)" value={exp.label} onChange={(e) => handleOtherExpenseChange(idx, 'label', e.target.value)} style={{ padding: '8px', border: '1px solid #CBD5E0', borderRadius: '4px' }} />
+                        <input type="number" placeholder="Amount" value={exp.amount} onChange={(e) => handleOtherExpenseChange(idx, 'amount', e.target.value)} style={{ padding: '8px', border: '1px solid #CBD5E0', borderRadius: '4px' }} />
+                        <button type="button" onClick={() => setFormData({...formData, otherExpenses: formData.otherExpenses.filter((_, i) => i !== idx)})} style={{ color: '#E53E3E', background: 'transparent', border: 'none', fontSize: '1.2rem' }}>×</button>
+                    </div>
+                ))}
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <InputField english="Fuel Log" tamil="டீசல் (பதிவு)" value={dieselFromLogs.toFixed(2)} readOnly />
               <InputField 
@@ -267,6 +302,11 @@ const Harvester = () => {
 
               {isExpanded && (
                 <div onClick={(e) => e.stopPropagation()}>
+                  <div style={{ fontSize: '0.8rem', color: '#718096', margin: '10px 0', borderTop: '1px solid #E2E8F0', paddingTop: '10px' }}>
+                    <div>Fuel: {formatCurrency(job.dieselFromLogs + job.additionalDiesel)}</div>
+                    <div>Other Exp: {formatCurrency(job.otherExpensesSum || 0)}</div>
+                    <div style={{ fontWeight: 'bold', color: '#1A6B55' }}>Profit: {formatCurrency(job.netProfit)}</div>
+                  </div>
                   <PaymentHistory 
                     payments={job.payments} 
                     totalAmount={job.finalAmount} 

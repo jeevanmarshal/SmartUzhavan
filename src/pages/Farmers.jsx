@@ -95,7 +95,11 @@ const Farmers = () => {
           />
           <SelectField 
             english="Type" tamil="வகை"
-            options={[{value: 'external', ta: 'வெளி நபர்'}, {value: 'own', ta: 'சொந்த நிலம்'}]}
+            options={[
+              { value: 'normal', label: 'Normal (சாதாரண)' }, 
+              { value: 'neighbour', label: 'Neighbour (அண்டை விவசாயி)' }, 
+              { value: 'own', label: 'Own Farm (சொந்த நிலம்)' }
+            ]}
             value={formData.type}
             onChange={(e) => setFormData({...formData, type: e.target.value})}
           />

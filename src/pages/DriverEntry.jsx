@@ -9,20 +9,20 @@ import DieselInput from '../components/driver/DieselInput';
 import { getHours, getDieselCost } from '../services/calculations';
 import { getDuration } from '../utils/timeUtils';
 import { generateId } from '../utils/idGenerator';
+import { generateLogBillId } from '../services/billId';
 
-const DriverEntry = () => {
-  const [drivers, setDrivers] = useState([]);
+const DriverEntry = ({ userId }) => {
   const [farmers, setFarmers] = useState([]);
   const [todaysLogs, setTodaysLogs] = useState([]);
   const [success, setSuccess] = useState(false);
   const [dieselPrice, setDieselPrice] = useState(0);
   
   const [formData, setFormData] = useState({
-    driverId: '',
-    machineType: '',
+    driverId: userId || '',
+    machineType: 'tyre',
     farmerId: '',
     date: new Date().toISOString().split('T')[0],
-    sessions: [{ start: '', end: '', durationHours: 0 }],
+    sessions: [{ start: '09:00', end: '10:00', durationHours: 1 }],
     diesel: {
       mode: 'none',
       value: 0,
@@ -32,7 +32,6 @@ const DriverEntry = () => {
   });
 
   useEffect(() => {
-    setDrivers(getData('rl_drivers'));
     const savedFarmers = getData('rl_farmers');
     setFarmers(savedFarmers.map(f => ({ value: f.id, label: `${f.name} (${f.village})` })));
     
@@ -42,13 +41,14 @@ const DriverEntry = () => {
     
     setFormData(prev => ({
       ...prev,
+      driverId: userId || prev.driverId,
       diesel: { ...prev.diesel, pricePerLitre: price }
     }));
 
     const logs = getData('rl_driver_logs');
     const today = new Date().toISOString().split('T')[0];
-    setTodaysLogs(logs.filter(l => l.date === today));
-  }, []);
+    setTodaysLogs(logs.filter(l => l.date === today && (!userId || l.driverId === userId)));
+  }, [userId]);
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -71,7 +71,7 @@ const DriverEntry = () => {
   const addSession = () => {
     setFormData(prev => ({
       ...prev,
-      sessions: [...prev.sessions, { start: '', end: '', durationHours: 0 }]
+      sessions: [...prev.sessions, { start: '09:00', end: '10:00', durationHours: 1 }]
     }));
   };
 
@@ -94,17 +94,17 @@ const DriverEntry = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.driverId) {
-      alert('Please select a driver');
-      return;
-    }
-
+    
+    const billId = generateLogBillId(new Date(formData.date).getFullYear());
     const logId = generateId('rl_driver_logs');
+    
     const newLog = {
       ...formData,
       id: logId,
+      billId, // Mandatory Bill ID integration
       totalHours,
-      source: 'driver_log'
+      source: 'driver_log',
+      status: 'active'
     };
 
     addRecord('rl_driver_logs', newLog);
@@ -112,11 +112,11 @@ const DriverEntry = () => {
     setSuccess(true);
     
     setFormData({
-      driverId: '',
-      machineType: '',
+      driverId: userId || '',
+      machineType: 'tyre',
       farmerId: '',
       date: new Date().toISOString().split('T')[0],
-      sessions: [{ start: '', end: '', durationHours: 0 }],
+      sessions: [{ start: '09:00', end: '10:00', durationHours: 1 }],
       diesel: {
         mode: 'none',
         value: 0,
@@ -140,13 +140,10 @@ const DriverEntry = () => {
 
       <form onSubmit={handleSubmit}>
         <div className="card">
-          <SelectField 
-            english="Select Driver" tamil="ஓட்டுநர்" 
-            options={drivers.map(d => ({ value: d.id, label: d.name }))}
-            value={formData.driverId}
-            onChange={(e) => handleFieldChange('driverId', e.target.value)}
-            required
-          />
+          <div style={{ marginBottom: '15px', padding: '10px', background: '#EDF2F7', borderRadius: '4px', fontSize: '0.9rem', color: '#4A5568' }}>
+            <strong>Driver:</strong> {userId ? getData('rl_drivers').find(d => d.id === userId)?.name : 'N/A'}
+          </div>
+          
           <SelectField 
             english="Machine Type" tamil="இயந்திர வகை"
             value={formData.machineType}
@@ -177,8 +174,10 @@ const DriverEntry = () => {
               onChange={handleSessionChange} onRemove={removeSession}
             />
           ))}
-          <Button onClick={addSession} variant="outline" fullWidth>+ Add Session</Button>
-          <div style={{ marginTop: '20px', textAlign: 'right', fontWeight: '700', color: '#1B3A6B' }}>
+          <div style={{ marginTop: '10px' }}>
+            <Button onClick={addSession} variant="outline" fullWidth>+ Add Session (கூடுதல் நேரம்)</Button>
+          </div>
+          <div style={{ marginTop: '20px', textAlign: 'right', fontWeight: '700', color: '#1B3A6B', fontSize: '1.2rem' }}>
             Total Hours: {totalHours.toFixed(2)}
           </div>
         </div>
@@ -197,12 +196,14 @@ const DriverEntry = () => {
         <div style={{ marginTop: '30px' }}>
           <h3>இன்றைய பதிவுகள் (Today's Logs)</h3>
           {todaysLogs.map(log => (
-            <div key={log.id} className="card" style={{ padding: '15px' }}>
+            <div key={log.id} className="card" style={{ padding: '15px', borderLeft: '4px solid #1B3A6B' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <strong>{drivers.find(d => d.id === log.driverId)?.name}</strong>
+                <strong>{log.billId}</strong>
                 <span style={{ color: '#1A6B55', fontWeight: 'bold' }}>{log.totalHours.toFixed(2)} Hrs</span>
               </div>
-              <div style={{ fontSize: '0.85rem', color: '#4a5568' }}>{log.id} | {farmers.find(f => f.value === log.farmerId)?.label}</div>
+              <div style={{ fontSize: '0.85rem', color: '#4a5568', marginTop: '5px' }}>
+                Farmer: {farmers.find(f => f.value === log.farmerId)?.label}
+              </div>
             </div>
           ))}
         </div>

@@ -1,0 +1,67 @@
+.container {
+  margin-top: 20px;
+  border-top: 2px solid #edf2f7;
+  padding-top: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.balanceSummary {
+  font-size: 1.1rem;
+  color: #1B3A6B;
+}
+
+.historyList {
+  margin-bottom: 20px;
+}
+
+.paymentItem {
+  padding: 12px;
+  background: #f7fafc;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  border-left: 4px solid #1A6B55;
+}
+
+.paymentMain {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.pAmount {
+  color: #2F855A;
+}
+
+.paymentSub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #718096;
+}
+
+.empty {
+  text-align: center;
+  padding: 20px;
+  color: #a0aec0;
+  font-style: italic;
+}
+
+.addForm {
+  background: #fdfdfd;
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}

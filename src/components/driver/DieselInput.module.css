@@ -1,0 +1,72 @@
+.container {
+  margin-top: 10px;
+}
+
+.radioGroup {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  min-height: 44px;
+}
+
+.radioLabel input {
+  width: 18px;
+  height: 18px;
+}
+
+.inputs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.inputField {
+  flex: 1;
+}
+
+.smallLabel {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+  color: #4a5568;
+}
+
+.numInput {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  min-height: 44px;
+}
+
+.numInputDisabled {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  min-height: 44px;
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+.total {
+  padding: 12px;
+  background-color: #f0fff4;
+  border: 1px solid #c6f6d5;
+  border-radius: 8px;
+  color: #22543d;
+  font-size: 1rem;
+}

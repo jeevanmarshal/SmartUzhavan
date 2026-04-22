@@ -1,0 +1,51 @@
+.button {
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  min-height: 44px; /* Requirements: 44px min height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.primary {
+  background-color: #1A6B55; /* Teal for actions */
+  color: white;
+}
+
+.primary:hover:not(:disabled) {
+  background-color: #145342;
+}
+
+.secondary {
+  background-color: #1B3A6B; /* Navy for heads/secondary */
+  color: white;
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: #152d54;
+}
+
+.danger {
+  background-color: #e53e3e;
+  color: white;
+}
+
+.outline {
+  background-color: transparent;
+  border: 2px solid #1A6B55;
+  color: #1A6B55;
+}
+
+.fullWidth {
+  width: 100%;
+}

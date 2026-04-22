@@ -1,0 +1,23 @@
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.pending {
+  background-color: #FED7D7;
+  color: #C53030;
+}
+
+.partial {
+  background-color: #FEEBC8;
+  color: #C05621;
+}
+
+.paid {
+  background-color: #C6F6D5;
+  color: #2F855A;
+}

@@ -1,0 +1,36 @@
+.container {
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #1A6B55;
+}
+
+.inputError {
+  border-color: #e53e3e;
+}
+
+.errorMessage {
+  color: #e53e3e;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  display: block;
+}
+
+.readOnly {
+  background-color: #f7fafc;
+  cursor: not-allowed;
+}

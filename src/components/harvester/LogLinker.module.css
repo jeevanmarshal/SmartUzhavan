@@ -1,0 +1,70 @@
+.container {
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #1B3A6B;
+}
+
+.list {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #edf2f7;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.item:hover {
+  background: #f7fafc;
+}
+
+.selected {
+  background: #f0fff4 !important;
+}
+
+.info {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  margin-left: 12px;
+}
+
+.date {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.hours {
+  color: #1A6B55;
+  font-weight: 700;
+}
+
+.logId {
+  font-size: 0.75rem;
+  color: #a0aec0;
+}
+
+.empty {
+  padding: 20px;
+  text-align: center;
+  color: #718096;
+  font-style: italic;
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
+}

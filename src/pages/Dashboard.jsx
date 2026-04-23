@@ -43,7 +43,7 @@ const Dashboard = () => {
     // We'll add a 'date' field to harvester jobs if missing, but for now we'll use seasonYear if month is not applicable, 
     // or better, assume every record has a 'date' field for dashboard filtering.
     
-    const filteredJobs = jobs.filter(j => j.status !== 'cancelled');
+    const filteredJobs = jobs.filter(j => j.status !== 'cancelled' && filterByDate(j.date));
     const filteredRentals = rentals.filter(r => filterByDate(r.date));
     const filteredOwnIncomes = ownIncomes.filter(o => filterByDate(o.harvestDate || o.date));
     const filteredDriverSals = driverSals.filter(s => filterByDate(s.date));
@@ -57,7 +57,7 @@ const Dashboard = () => {
     // Expenses
     const dExp = filteredDriverSals.reduce((sum, s) => sum + (s.netPay || 0), 0);
     const wExp = workEntries.filter(w => filterByDate(w.date)).reduce((sum, w) => sum + (w.netPayable || 0), 0);
-    const gExp = filteredExpenses.filter(e => e.source === 'own_farm' || !e.source).reduce((sum, e) => sum + (e.amount || 0), 0);
+    const gExp = filteredExpenses.filter(e => e.source !== 'home_expense').reduce((sum, e) => sum + (e.amount || 0), 0);
     
     // Job-level expenses (Critical Issue #05 ERROR B)
     const jExp = filteredJobs.reduce((sum, j) => {

@@ -22,14 +22,15 @@ const Login = ({ onLogin }) => {
     setError('');
 
     if (role === 'admin') {
-      if (pin === '1234') { // Default Admin PIN
+      const savedPin = localStorage.getItem('admin_pin') || '1234';
+      if (pin === savedPin) {
         onLogin({ role: 'admin', name: 'Administrator' });
       } else {
         setError('தவறான கடவுச்சொல் (Invalid Admin PIN)');
       }
     } else if (role === 'driver') {
       const driver = drivers.find(d => d.id === userId);
-      if (driver && (driver.pin === pin || pin === '0000')) { // Allow 0000 as backup or if not set
+      if (driver && driver.pin === pin) {
         onLogin({ role: 'driver', id: driver.id, name: driver.name });
       } else {
         setError('தவறான விவரங்கள் (Invalid Driver Credentials)');

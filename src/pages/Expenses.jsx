@@ -12,6 +12,7 @@ const Expenses = () => {
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
+    source: 'business',
     category: 'maintenance',
     amount: '',
     description: ''
@@ -42,6 +43,7 @@ const Expenses = () => {
     setSuccess(true);
     setFormData({ 
       date: new Date().toISOString().split('T')[0], 
+      source: 'business',
       category: 'maintenance', 
       amount: '', 
       description: '' 
@@ -58,6 +60,16 @@ const Expenses = () => {
         <InputField 
           english="Date" tamil="தேதி" type="date" value={formData.date}
           onChange={(e) => setFormData({...formData, date: e.target.value})} required
+        />
+        <SelectField 
+          english="Expense Type" tamil="செலவு வகை" 
+          options={[
+            { value: 'business', ta: 'வியாபார செலவு (Business)' },
+            { value: 'own_farm', ta: 'சொந்த பண்ணை செலவு (Own Farm)' },
+            { value: 'home_expense', ta: 'வீட்டு செலவு (Home)' },
+          ]}
+          value={formData.source}
+          onChange={(e) => setFormData({...formData, source: e.target.value})}
         />
         <SelectField 
           english="Category" tamil="வகை" options={categories} value={formData.category}

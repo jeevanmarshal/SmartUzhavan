@@ -25,7 +25,8 @@ const Finance = () => {
 
   useEffect(() => {
     setLending(getData('rl_lending'));
-    setExpenses(getData('rl_expenses'));
+    const allExpenses = getData('rl_expenses');
+    setExpenses(allExpenses.filter(e => e.source === 'home_expense'));
   }, []);
 
   const handleSaveLending = (e) => {
@@ -131,8 +132,20 @@ const Finance = () => {
 
       {activeTab === 'home' && (
         <div className="list-container">
-            <p style={{ textAlign: 'center', color: '#718096' }}>Note: Home expenses are managed in the Expenses module with source='home'.</p>
-            <Button onClick={() => window.location.href='/expenses'}>Go to Expenses</Button>
+          {expenses.length === 0 && <p style={{textAlign:'center', color:'#718096'}}>No home expenses found. (வீட்டுச் செலவுகள் ஏதுமில்லை)</p>}
+          {expenses.map(exp => (
+            <div key={exp.id} className="card" style={{ borderLeft: '4px solid #C53030' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 'bold' }}>{exp.description || exp.category}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#718096' }}>{exp.date}</div>
+                </div>
+                <span style={{ fontWeight: 'bold', color: '#C53030' }}>
+                  {formatCurrency(exp.amount)}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -14,7 +14,7 @@ const Workers = () => {
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    workerName: '',
+    workerId: '',
     workType: 'Daily Wage',
     baseSalary: 0,
     bonus: 0,
@@ -59,7 +59,7 @@ const Workers = () => {
     setShowAddForm(false);
     setFormData({
       date: new Date().toISOString().split('T')[0],
-      workerName: formData.workerName,
+      workerId: formData.workerId,
       workType: 'Daily Wage',
       baseSalary: 0,
       bonus: 0,
@@ -85,9 +85,9 @@ const Workers = () => {
           />
           <SelectField 
             english="Worker" tamil="வேலையாள்"
-            options={workers.map(w => ({ value: w.name, label: w.name }))}
-            value={formData.workerName}
-            onChange={(e) => setFormData({...formData, workerName: e.target.value})}
+            options={workers.map(w => ({ value: w.id, label: w.name }))}
+            value={formData.workerId}
+            onChange={(e) => setFormData({...formData, workerId: e.target.value})}
             required
           />
           <SelectField 
@@ -126,7 +126,7 @@ const Workers = () => {
           <div key={entry.id} className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontWeight: 'bold' }}>{entry.workerName}</div>
+                <div style={{ fontWeight: 'bold' }}>{workers.find(w => w.id === entry.workerId)?.name || 'Unknown Worker'}</div>
                 <div style={{ fontSize: '0.8rem', color: '#718096' }}>{entry.date} | {entry.workType}</div>
               </div>
               <div style={{ fontWeight: 'bold', color: '#1A6B55' }}>{formatCurrency(entry.netPayable)}</div>

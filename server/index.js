@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { generateHarvesterBill, generateStatement } = require('./pdfGenerator');
+const { generateHarvesterBill, generateStatement, generateRentalReceipt } = require('./pdfGenerator');
 
 const app = express();
 app.use(cors());

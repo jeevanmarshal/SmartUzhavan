@@ -4,7 +4,7 @@
  * with proper Tamil rendering and selectable text.
  */
 
-const API_BASE_URL = 'http://localhost:5000/api/pdf';
+const API_BASE_URL = import.meta.env.VITE_PDF_API_URL || 'http://localhost:5000/api/pdf';
 
 /**
  * Helper to download PDF from API

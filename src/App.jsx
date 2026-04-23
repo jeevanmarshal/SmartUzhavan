@@ -17,7 +17,7 @@ import FarmerView from './pages/FarmerView';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import DriverDashboard from './pages/DriverDashboard';
-import { getData, saveData } from './services/storage';
+import { getData, saveData, getConfig } from './services/storage';
 import { initialFarmers, initialDrivers, initialPricingConfig } from './data/initialData';
 import './index.css';
 
@@ -35,7 +35,7 @@ function App() {
     if (getData('rl_drivers').length === 0) {
       saveData('rl_drivers', initialDrivers);
     }
-    if (Object.keys(getData('rl_pricing_config')).length === 0) {
+    if (Object.keys(getConfig('rl_pricing_config')).length === 0) {
       saveData('rl_pricing_config', initialPricingConfig);
     }
   }, []);

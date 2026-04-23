@@ -25,3 +25,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary and Test Files
+doc_text.txt
+doc_temp/
+server/*.pdf
+today_progress_report.md
+

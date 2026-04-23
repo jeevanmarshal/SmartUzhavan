@@ -14,6 +14,8 @@ const SalaryDriver = ({ userId }) => {
   const [allLogs, setAllLogs] = useState([]);
   const [salaries, setSalaries] = useState([]);
   const [activeSalId, setActiveSalId] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -44,7 +46,7 @@ const SalaryDriver = ({ userId }) => {
   const handleSave = (e) => {
     e.preventDefault();
     if (availableLogs.length === 0) {
-      alert('No unpaid work logs found for this driver.');
+      setError('இந்த ஓட்டுநருக்கு ஊதியம் வழங்கப்படாத வேலை நேரங்கள் எதுவும் இல்லை. (No unpaid work logs found.)');
       return;
     }
 
@@ -82,7 +84,9 @@ const SalaryDriver = ({ userId }) => {
     setSalaries(getData('rl_driver_salary'));
     setAllLogs(getData('rl_driver_logs'));
     setFormData({ ...formData, bonus: 0, extraAmount: 0, advance: 0, description: '' });
-    alert('Salary record created successfully!');
+    setSuccess(true);
+    setError('');
+    setTimeout(() => setSuccess(false), 3000);
   };
 
   const handleAddPayment = (id, payment) => {
@@ -135,6 +139,9 @@ const SalaryDriver = ({ userId }) => {
           <div style={{ padding: '15px', background: '#F0FFF4', borderRadius: '8px', marginBottom: '20px', textAlign: 'center' }}>
             <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1A6B55' }}>Net Payable: {formatCurrency(netPay)}</span>
           </div>
+
+          {success && <div className="success-message">சம்பளப் பதிவு வெற்றிகரமாகச் சேமிக்கப்பட்டது (Salary record saved successfully)</div>}
+          {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
           <Button type="submit" fullWidth>Confirm Salary (சம்பளம் உறுதிசெய்)</Button>
         </form>

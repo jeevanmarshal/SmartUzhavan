@@ -204,6 +204,7 @@ const generateRentalReceipt = async (rental, farmer) => {
         doc.fillColor('#1B3A6B').text('Farmer Details', 50, topY);
         doc.fillColor('black').text(`Name: ${farmer?.name || 'N/A'}`, 50, topY + 20);
         doc.text(`ID: ${farmer?.id || 'N/A'}`, 50, topY + 35);
+        doc.text(`Village: ${farmer?.village || 'N/A'}`, 50, topY + 50);
 
         doc.fillColor('#1B3A6B').text('Receipt Info', 350, topY);
         doc.fillColor('black').text(`Receipt ID: ${rental.id}`, 350, topY + 20);
@@ -216,14 +217,25 @@ const generateRentalReceipt = async (rental, farmer) => {
         doc.text('Duration', 300, tableY + 5, { width: 100, align: 'right' });
         doc.text('Amount', 440, tableY + 5, { width: 100, align: 'right' });
 
-        doc.fillColor('black').text(rental.equipmentName || 'Equipment Rental', 60, tableY + 30);
-        doc.text(`${rental.duration || 1} ${rental.durationUnit || 'Days'}`, 300, tableY + 30, { width: 100, align: 'right' });
+        doc.fillColor('black').text(rental.machineType || 'Equipment Rental', 60, tableY + 30);
+        doc.text(`${rental.quantity || 1} ${rental.unit || 'Days'}`, 300, tableY + 30, { width: 100, align: 'right' });
         doc.text(formatCurrency(rental.totalAmount), 440, tableY + 30, { width: 100, align: 'right' });
 
         // Total
-        doc.moveTo(50, 300).lineTo(550, 300).stroke('#E2E8F0');
-        doc.fontSize(12).text('Total Amount:', 300, 320);
-        doc.text(formatCurrency(rental.totalAmount), 440, 320, { width: 100, align: 'right' });
+        const summaryY = 320;
+        doc.moveTo(50, summaryY).lineTo(550, summaryY).stroke('#E2E8F0');
+        doc.fontSize(12).text('Total Amount:', 300, summaryY + 20);
+        doc.text(formatCurrency(rental.totalAmount), 440, summaryY + 20, { width: 100, align: 'right' });
+
+        // Payment History
+        if (rental.payments && rental.payments.length > 0) {
+            doc.moveDown(4);
+            doc.fillColor('#1B3A6B').fontSize(12).text('Payment History / பணம் செலுத்திய விவரம்');
+            doc.moveDown();
+            rental.payments.forEach(p => {
+                doc.fillColor('black').fontSize(10).text(`${p.date} - ${p.mode} : ${formatCurrency(p.amount)}`, { indent: 20 });
+            });
+        }
 
         doc.end();
     });

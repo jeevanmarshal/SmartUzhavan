@@ -19,10 +19,10 @@ const DriverEntry = ({ userId }) => {
   
   const [formData, setFormData] = useState({
     driverId: userId || '',
-    machineType: 'tyre',
+    machineType: 'harvester_tyre',
     farmerId: '',
     date: new Date().toISOString().split('T')[0],
-    sessions: [{ start: '09:00', end: '10:00', durationHours: 1 }],
+    sessions: [{ start: '', end: '', durationHours: 0 }],
     diesel: {
       mode: 'none',
       value: 0,
@@ -71,7 +71,7 @@ const DriverEntry = ({ userId }) => {
   const addSession = () => {
     setFormData(prev => ({
       ...prev,
-      sessions: [...prev.sessions, { start: '09:00', end: '10:00', durationHours: 1 }]
+      sessions: [...prev.sessions, { start: '', end: '', durationHours: 0 }]
     }));
   };
 
@@ -113,10 +113,10 @@ const DriverEntry = ({ userId }) => {
     
     setFormData({
       driverId: userId || '',
-      machineType: 'tyre',
+      machineType: 'harvester_tyre',
       farmerId: '',
       date: new Date().toISOString().split('T')[0],
-      sessions: [{ start: '09:00', end: '10:00', durationHours: 1 }],
+      sessions: [{ start: '', end: '', durationHours: 0 }],
       diesel: {
         mode: 'none',
         value: 0,

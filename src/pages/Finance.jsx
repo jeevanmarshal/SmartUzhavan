@@ -8,10 +8,18 @@ import PaymentHistory from '../components/common/PaymentHistory';
 import Badge from '../components/common/Badge';
 import { getPaymentStatus } from '../services/calculations';
 
+import { useLocation } from 'react-router-dom';
+import SelectField from '../components/common/SelectField';
+
 const Finance = () => {
-  const [activeTab, setActiveTab] = useState('lending');
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const searchBillId = searchParams.get('billId');
+
+  const [activeTab, setActiveTab] = useState(searchBillId ? 'harvester' : 'lending');
   const [lending, setLending] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [jobs, setJobs] = useState([]); // Add harvester jobs state if needed for searching
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeLendingId, setActiveLendingId] = useState(null);
 
@@ -23,11 +31,36 @@ const Finance = () => {
     status: 'active'
   });
 
+  const [filters, setFilters] = useState({
+    category: 'all',
+    fromDate: '',
+    toDate: ''
+  });
+
+  const homeCategories = [
+    { value: 'all', label: 'All Categories (அனைத்தும்)' },
+    { value: 'grocery', label: 'Groceries (மளிகை)' },
+    { value: 'medical', label: 'Medical (மருத்துவம்)' },
+    { value: 'education', label: 'Education (கல்வி)' },
+    { value: 'function', label: 'Function (விசேஷம்)' },
+    { value: 'personal', label: 'Personal (தனிப்பட்ட)' },
+    { value: 'other', label: 'Other (மற்றவை)' }
+  ];
+
   useEffect(() => {
     setLending(getData('rl_lending'));
-    const allExpenses = getData('rl_expenses');
-    setExpenses(allExpenses.filter(e => e.source === 'home_expense'));
+    setExpenses(getData('rl_expenses').filter(e => e.source === 'home_expense'));
+    setJobs(getData('rl_harvester_jobs'));
   }, []);
+
+  const filteredExpenses = expenses.filter(exp => {
+    const matchCat = filters.category === 'all' || exp.category === filters.category;
+    const matchFrom = !filters.fromDate || exp.date >= filters.fromDate;
+    const matchTo = !filters.toDate || exp.date <= filters.toDate;
+    return matchCat && matchFrom && matchTo;
+  });
+
+  const totalFilteredExpense = filteredExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
 
   const handleSaveLending = (e) => {
     e.preventDefault();
@@ -54,12 +87,18 @@ const Finance = () => {
         {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ New Entry</Button>}
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', overflowX: 'auto' }}>
         <button 
           onClick={() => setActiveTab('lending')}
           style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: activeTab === 'lending' ? '#1B3A6B' : '#E2E8F0', color: activeTab === 'lending' ? 'white' : '#4A5568', fontWeight: 'bold', cursor: 'pointer' }}
         >
           கடன் (Lending)
+        </button>
+        <button 
+          onClick={() => setActiveTab('harvester')}
+          style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: activeTab === 'harvester' ? '#1B3A6B' : '#E2E8F0', color: activeTab === 'harvester' ? 'white' : '#4A5568', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          Bill ID Search (ரசீது தேடல்)
         </button>
         <button 
           onClick={() => setActiveTab('home')}
@@ -95,6 +134,34 @@ const Finance = () => {
         </form>
       )}
 
+      {activeTab === 'harvester' && (
+        <div className="list-container">
+           {searchBillId && <p style={{ fontSize: '0.9rem', color: '#1B3A6B', marginBottom: '10px' }}>Searching for Bill ID: <b>{searchBillId}</b></p>}
+           {jobs.filter(j => !searchBillId || j.billId.includes(searchBillId)).map(job => {
+             const paid = (job.payments || []).reduce((s, p) => s + p.amount, 0);
+             return (
+               <div key={job.id} className="card" style={{ borderLeft: '4px solid #38A169', border: job.billId === searchBillId ? '2px solid #1B3A6B' : 'none' }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                   <div>
+                     <div style={{ fontWeight: 'bold' }}>Bill ID: {job.billId}</div>
+                     <div style={{ fontSize: '0.8rem', color: '#718096' }}>{job.date} | Farmer ID: {job.farmerId}</div>
+                   </div>
+                   <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 'bold', color: '#38A169' }}>Total: {formatCurrency(job.finalAmount)}</div>
+                      <div style={{ fontSize: '0.8rem', color: (job.finalAmount - paid) > 0 ? '#E53E3E' : '#38A169' }}>Due: {formatCurrency(job.finalAmount - paid)}</div>
+                   </div>
+                 </div>
+                 <div style={{ marginTop: '10px' }}>
+                    <PaymentHistory record={job} collection="rl_harvester_jobs" onUpdate={() => setJobs(getData('rl_harvester_jobs'))} />
+                 </div>
+               </div>
+             );
+           })}
+           {jobs.filter(j => !searchBillId || j.billId.includes(searchBillId)).length === 0 && (
+             <p style={{ textAlign: 'center', color: '#718096', padding: '20px' }}>No matching bills found.</p>
+           )}
+        </div>
+      )}
       {activeTab === 'lending' && (
         <div className="list-container">
           {lending.map(item => {
@@ -132,20 +199,44 @@ const Finance = () => {
 
       {activeTab === 'home' && (
         <div className="list-container">
-          {expenses.length === 0 && <p style={{textAlign:'center', color:'#718096'}}>No home expenses found. (வீட்டுச் செலவுகள் ஏதுமில்லை)</p>}
-          {expenses.map(exp => (
-            <div key={exp.id} className="card" style={{ borderLeft: '4px solid #C53030' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontWeight: 'bold' }}>{exp.description || exp.category}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#718096' }}>{exp.date}</div>
-                </div>
-                <span style={{ fontWeight: 'bold', color: '#C53030' }}>
-                  {formatCurrency(exp.amount)}
-                </span>
+          <div className="card" style={{ marginBottom: '20px', background: '#F7FAFC' }}>
+            <h4 style={{ margin: '0 0 10px 0' }}>Filters (வடிகட்டி)</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+              <SelectField 
+                english="Category" options={homeCategories}
+                value={filters.category} onChange={e => setFilters({...filters, category: e.target.value})}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <InputField type="date" english="From" value={filters.fromDate} onChange={e => setFilters({...filters, fromDate: e.target.value})} />
+                <InputField type="date" english="To" value={filters.toDate} onChange={e => setFilters({...filters, toDate: e.target.value})} />
               </div>
             </div>
-          ))}
+          </div>
+
+          {filteredExpenses.length === 0 ? (
+            <p style={{textAlign:'center', color:'#718096'}}>No matching expenses found.</p>
+          ) : (
+            <>
+              <div className="card" style={{ background: '#FFF5F5', borderLeft: '4px solid #C53030', marginBottom: '15px', textAlign: 'center' }}>
+                 <div style={{ fontSize: '0.9rem', color: '#4A5568' }}>Total Selected Expense (மொத்த செலவு)</div>
+                 <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C53030' }}>{formatCurrency(totalFilteredExpense)}</div>
+              </div>
+              
+              {filteredExpenses.map(exp => (
+                <div key={exp.id} className="card" style={{ borderLeft: '4px solid #C53030' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontWeight: 'bold' }}>{exp.description || exp.category}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#718096' }}>{exp.date} | {exp.category}</div>
+                    </div>
+                    <span style={{ fontWeight: 'bold', color: '#C53030' }}>
+                      {formatCurrency(exp.amount)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getData } from '../services/storage';
+import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import SelectField from '../components/common/SelectField';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [farmers, setFarmers] = useState([]);
+  const [searchBill, setSearchBill] = useState('');
+  
+  useEffect(() => {
+    setFarmers(getData('rl_farmers'));
+  }, []);
   const [stats, setStats] = useState({
     harvesterRev: 0,
     rentalRev: 0,
@@ -107,6 +115,29 @@ const Dashboard = () => {
 
   return (
     <div className="app-container">
+      {/* Global Navigator Sticky Bar */}
+      <div style={{ position: 'sticky', top: '0', zIndex: '100', background: 'white', padding: '15px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginBottom: '25px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #E2E8F0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '10px' }}>
+          <SelectField 
+            english="Go to Farmer (விவசாயி)" 
+            options={[{value: '', label: 'Select Farmer...'}, ...farmers.map(f => ({value: f.id, label: `${f.name} - ${f.village}`}))]}
+            onChange={(e) => e.target.value && navigate(`/farmers?search=${e.target.value}`)}
+          />
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <input 
+              type="text" placeholder="Bill ID..." 
+              value={searchBill} onChange={(e) => setSearchBill(e.target.value)}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E0' }}
+            />
+            <Button onClick={() => searchBill && navigate(`/finance?billId=${searchBill}`)} style={{ padding: '0 15px' }}>Go</Button>
+          </div>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <Button variant="outline" onClick={() => navigate('/expenses')} style={{ flex: 1, fontSize: '0.8rem' }}>+ Expense</Button>
+            <Button variant="outline" onClick={() => navigate('/workers')} style={{ flex: 1, fontSize: '0.8rem' }}>+ Worker</Button>
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h1>நிர்வாக மேலாண்மை (Executive Dashboard)</h1>
         <div style={{ display: 'flex', gap: '10px' }}>

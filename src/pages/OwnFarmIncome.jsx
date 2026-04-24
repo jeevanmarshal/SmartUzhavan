@@ -3,6 +3,7 @@ import { getData, addRecord } from '../services/storage';
 import { generateId } from '../utils/idGenerator';
 import { formatCurrency } from '../utils/formatters';
 import InputField from '../components/common/InputField';
+import SelectField from '../components/common/SelectField';
 import Button from '../components/common/Button';
 
 const OwnFarmIncome = () => {
@@ -10,9 +11,11 @@ const OwnFarmIncome = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    harvestType: 'Paddy',
+    incomeSource: 'paddy',
     numberOfBags: 0,
     pricePerBag: 0,
+    numberOfBundles: 0,
+    pricePerBundle: 0,
     totalIncome: 0,
     description: ''
   });
@@ -22,9 +25,14 @@ const OwnFarmIncome = () => {
   }, []);
 
   useEffect(() => {
-    const total = (parseFloat(formData.numberOfBags) || 0) * (parseFloat(formData.pricePerBag) || 0);
+    let total = 0;
+    if (formData.incomeSource === 'paddy') {
+      total = (parseFloat(formData.numberOfBags) || 0) * (parseFloat(formData.pricePerBag) || 0);
+    } else {
+      total = (parseFloat(formData.numberOfBundles) || 0) * (parseFloat(formData.pricePerBundle) || 0);
+    }
     setFormData(prev => ({ ...prev, totalIncome: total }));
-  }, [formData.numberOfBags, formData.pricePerBag]);
+  }, [formData.incomeSource, formData.numberOfBags, formData.pricePerBag, formData.numberOfBundles, formData.pricePerBundle]);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -36,7 +44,16 @@ const OwnFarmIncome = () => {
     addRecord('rl_own_farm_income', entry);
     setEntries(getData('rl_own_farm_income'));
     setShowAddForm(false);
-    setFormData({ date: new Date().toISOString().split('T')[0], harvestType: 'Paddy', numberOfBags: 0, pricePerBag: 0, totalIncome: 0, description: '' });
+    setFormData({ 
+      date: new Date().toISOString().split('T')[0], 
+      incomeSource: 'paddy', 
+      numberOfBags: 0, 
+      pricePerBag: 0, 
+      numberOfBundles: 0, 
+      pricePerBundle: 0, 
+      totalIncome: 0, 
+      description: '' 
+    });
   };
 
   return (
@@ -48,13 +65,27 @@ const OwnFarmIncome = () => {
 
       {showAddForm && (
         <form onSubmit={handleSave} className="card">
-          <InputField english="Date" tamil="தேதி" type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required />
-          <InputField english="Crop Type" tamil="பயிர் வகை" value={formData.harvestType} onChange={(e) => setFormData({...formData, harvestType: e.target.value})} required />
+          <SelectField 
+            english="Income Source" tamil="வருமான வகை"
+            options={[
+              { value: 'paddy', label: 'Paddy (நெல்)' },
+              { value: 'vaikool', label: 'Paddy Straw / Vaikool (வைக்கோல்)' }
+            ]}
+            value={formData.incomeSource}
+            onChange={(e) => setFormData({...formData, incomeSource: e.target.value})}
+          />
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <InputField english="No. of Bags" tamil="மூட்டைகளின் எண்ணிக்கை" type="number" value={formData.numberOfBags} onChange={(e) => setFormData({...formData, numberOfBags: e.target.value})} required />
-            <InputField english="Price per Bag" tamil="ஒரு மூட்டை விலை" type="number" value={formData.pricePerBag} onChange={(e) => setFormData({...formData, pricePerBag: e.target.value})} required />
-          </div>
+          {formData.incomeSource === 'paddy' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <InputField english="No. of Bags" tamil="மூட்டைகளின் எண்ணிக்கை" type="number" value={formData.numberOfBags} onChange={(e) => setFormData({...formData, numberOfBags: e.target.value})} required />
+              <InputField english="Price per Bag" tamil="ஒரு மூட்டை விலை" type="number" value={formData.pricePerBag} onChange={(e) => setFormData({...formData, pricePerBag: e.target.value})} required />
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <InputField english="No. of Bundles" tamil="கட்டுகளின் எண்ணிக்கை" type="number" value={formData.numberOfBundles} onChange={(e) => setFormData({...formData, numberOfBundles: e.target.value})} required />
+              <InputField english="Price per Bundle" tamil="ஒரு கட்டு விலை" type="number" value={formData.pricePerBundle} onChange={(e) => setFormData({...formData, pricePerBundle: e.target.value})} required />
+            </div>
+          )}
 
           <div style={{ padding: '15px', background: '#F0FFF4', borderRadius: '8px', marginBottom: '20px', textAlign: 'center' }}>
             <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1A6B55' }}>
@@ -76,8 +107,12 @@ const OwnFarmIncome = () => {
           <div key={entry.id} className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontWeight: 'bold' }}>{entry.harvestType}</div>
-                <div style={{ fontSize: '0.8rem', color: '#718096' }}>{entry.date} | {entry.numberOfBags} Bags</div>
+                <div style={{ fontWeight: 'bold' }}>
+                  {entry.incomeSource === 'vaikool' ? 'வைக்கோல் (Vaikool)' : 'நெல் (Paddy)'}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#718096' }}>
+                  {entry.date} | {entry.incomeSource === 'vaikool' ? `${entry.numberOfBundles} Bundles` : `${entry.numberOfBags} Bags`}
+                </div>
               </div>
               <div style={{ fontWeight: 'bold', color: '#1A6B55' }}>{formatCurrency(entry.totalIncome)}</div>
             </div>

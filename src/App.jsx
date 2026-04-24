@@ -4,7 +4,6 @@ import PricingConfig from './pages/PricingConfig';
 import DriverEntry from './pages/DriverEntry';
 import Harvester from './pages/Harvester';
 import Rental from './pages/Rental';
-import SalaryDriver from './pages/SalaryDriver';
 import Workers from './pages/Workers';
 import Farmers from './pages/Farmers';
 import Drivers from './pages/Drivers';
@@ -86,8 +85,7 @@ function App() {
             <Link to="/settings" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Settings</Link>
             <Link to="/drivers" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Drivers</Link>
             <Link to="/expenses" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Expenses</Link>
-            <Link to="/own-farm-income" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Own Farm</Link>
-            <Link to="/salary-driver" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Driver Salary</Link>
+             <Link to="/own-farm-income" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Own Farm</Link>
             <Link to="/workers" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Workers</Link>
           </>
         )}
@@ -95,7 +93,7 @@ function App() {
           <>
             <Link to="/driver-dashboard" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Dashboard</Link>
             <Link to="/driver-entry" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Log Entry</Link>
-            <Link to="/salary-driver" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>My Salary</Link>
+            <Link to="/drivers?tab=salary" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>My Salary</Link>
           </>
         )}
         {isFarmer && (
@@ -116,10 +114,9 @@ function App() {
             <Route path="/finance" element={<Finance />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/drivers" element={<Drivers />} />
+            <Route path="/drivers" element={<Drivers user={user} />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/own-farm-income" element={<OwnFarmIncome />} />
-            <Route path="/salary-driver" element={<SalaryDriver />} />
             <Route path="/workers" element={<Workers />} />
           </>
         )}
@@ -127,7 +124,7 @@ function App() {
           <>
             <Route path="/driver-dashboard" element={<DriverDashboard userId={user.id} />} />
             <Route path="/driver-entry" element={<DriverEntry userId={user.id} />} />
-            <Route path="/salary-driver" element={<SalaryDriver userId={user.id} />} />
+            <Route path="/drivers" element={<Drivers user={user} />} />
           </>
         )}
         {isFarmer && (

@@ -30,7 +30,9 @@ const Settings = () => {
     a.href = url;
     a.download = `SmartUzhavan_Backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
-    setStatus('Backup exported successfully! (காப்புப்பிரதி எடுக்கப்பட்டது)');
+    const now = new Date().toLocaleString();
+    localStorage.setItem('rl_last_backup', now);
+    setStatus(`Backup exported successfully! (${now})`);
   };
 
   const handleImport = (e) => {
@@ -77,7 +79,11 @@ const Settings = () => {
       <h1>அமைப்புகள் (Settings)</h1>
 
       <div className="card">
-        <h3>Backup & Restore (காப்புப்பிரதி)</h3>
+        <h3>Data Management (தரவு மேலாண்மை)</h3>
+        <div style={{ background: '#F7FAFC', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #E2E8F0' }}>
+          <div style={{ fontSize: '0.85rem', color: '#4A5568' }}>Last Backup Date (கடைசி காப்புப்பிரதி):</div>
+          <div style={{ fontWeight: 'bold', color: '#1B3A6B' }}>{localStorage.getItem('rl_last_backup') || 'Never'}</div>
+        </div>
         <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '20px' }}>
           Save your data to a file or restore from a previous backup.
         </p>
@@ -146,9 +152,9 @@ const Settings = () => {
       
       <div className="card" style={{ marginTop: '20px' }}>
         <h3>App Info</h3>
-        <div style={{ fontSize: '0.9rem' }}>Version: 3.0.0 (Gold Master)</div>
-        <div style={{ fontSize: '0.9rem' }}>Tamil: Noto Sans Tamil (Server Rendered)</div>
-        <div style={{ fontSize: '0.9rem' }}>Status: Production Ready (SRS Aligned)</div>
+        <div style={{ fontSize: '0.9rem' }}>Version: 3.1.0 (Advanced Edition)</div>
+        <div style={{ fontSize: '0.9rem' }}>Tamil: Noto Sans Tamil (Integrated)</div>
+        <div style={{ fontSize: '0.9rem' }}>Status: Production v3.1 Ready</div>
       </div>
     </div>
   );

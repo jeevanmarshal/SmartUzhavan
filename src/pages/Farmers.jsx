@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getData, saveData, updateRecord, deleteRecord } from '../services/storage';
 import { generateId } from '../utils/idGenerator';
 import InputField from '../components/common/InputField';
@@ -6,10 +7,15 @@ import SelectField from '../components/common/SelectField';
 import Button from '../components/common/Button';
 
 const Farmers = () => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const searchId = searchParams.get('search');
+
   const [farmers, setFarmers] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingFarmer, setEditingFarmer] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -111,8 +117,8 @@ const Farmers = () => {
       )}
 
       <div className="list-container">
-        {farmers.map(farmer => (
-          <div key={farmer.id} className="card" style={{ padding: '15px' }}>
+        {farmers.filter(f => !searchId || f.id === searchId).map(farmer => (
+          <div key={farmer.id} className="card" style={{ padding: '15px', border: farmer.id === searchId ? '2px solid #1B3A6B' : '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontWeight: '700' }}>{farmer.name} <span style={{ color: '#718096', fontSize: '0.8rem' }}>[{farmer.id}]</span></div>

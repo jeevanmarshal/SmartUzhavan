@@ -28,7 +28,12 @@ dist-ssr
 
 # Temporary and Test Files
 doc_text.txt
+doc_v3.1_text.txt
 doc_temp/
+temp_docx/
+doc_v3.1/
+*.docx
+*.zip
 server/*.pdf
 today_progress_report.md
 

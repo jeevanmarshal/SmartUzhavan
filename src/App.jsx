@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
-import PricingConfig from './pages/PricingConfig';
 import DriverEntry from './pages/DriverEntry';
 import Harvester from './pages/Harvester';
 import Rental from './pages/Rental';
+
 import Workers from './pages/Workers';
 import Farmers from './pages/Farmers';
 import Drivers from './pages/Drivers';
@@ -13,8 +13,7 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Finance from './pages/Finance';
 import FarmerView from './pages/FarmerView';
-import Reports from './pages/Reports';
-import Settings from './pages/Settings';
+import System from './pages/System';
 import DriverDashboard from './pages/DriverDashboard';
 import { getData, saveData, getConfig } from './services/storage';
 import { initialFarmers, initialDrivers, initialPricingConfig } from './data/initialData';
@@ -76,16 +75,14 @@ function App() {
         {isAdmin && (
           <>
             <Link to="/dashboard" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Dashboard</Link>
-            <Link to="/pricing-config" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Config</Link>
             <Link to="/harvester" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Harvester</Link>
             <Link to="/rental" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Rental</Link>
             <Link to="/farmers" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Farmers</Link>
             <Link to="/finance" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Finance</Link>
-            <Link to="/reports" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Reports</Link>
-            <Link to="/settings" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Settings</Link>
+            <Link to="/system" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>System (அமைப்பு)</Link>
             <Link to="/drivers" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Drivers</Link>
             <Link to="/expenses" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Expenses</Link>
-             <Link to="/own-farm-income" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Own Farm</Link>
+            <Link to="/own-farm-income" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Own Farm</Link>
             <Link to="/workers" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Workers</Link>
           </>
         )}
@@ -107,14 +104,12 @@ function App() {
         {isAdmin && (
           <>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/pricing-config" element={<PricingConfig />} />
             <Route path="/harvester" element={<Harvester />} />
             <Route path="/rental" element={<Rental />} />
             <Route path="/farmers" element={<Farmers />} />
             <Route path="/finance" element={<Finance />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/drivers" element={<Drivers user={user} />} />
+            <Route path="/system" element={<System />} />
+            <Route path="/drivers" element={<Drivers />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/own-farm-income" element={<OwnFarmIncome />} />
             <Route path="/workers" element={<Workers />} />
@@ -124,7 +119,7 @@ function App() {
           <>
             <Route path="/driver-dashboard" element={<DriverDashboard userId={user.id} />} />
             <Route path="/driver-entry" element={<DriverEntry userId={user.id} />} />
-            <Route path="/drivers" element={<Drivers user={user} />} />
+            <Route path="/drivers" element={<Drivers userId={user.id} />} />
           </>
         )}
         {isFarmer && (

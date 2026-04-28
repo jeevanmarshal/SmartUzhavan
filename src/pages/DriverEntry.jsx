@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { getData, getConfig, addRecord } from '../services/storage';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getData, getConfig, addRecord, updateRecord, deleteRecord } from '../services/storage';
 import { machineTypes } from '../data/machineTypes';
 import SelectField from '../components/common/SelectField';
 import InputField from '../components/common/InputField';
@@ -13,9 +13,21 @@ import { generateLogBillId } from '../services/billId';
 
 const DriverEntry = ({ userId }) => {
   const [farmers, setFarmers] = useState([]);
-  const [todaysLogs, setTodaysLogs] = useState([]);
+  const [allLogs, setAllLogs] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
   const [dieselPrice, setDieselPrice] = useState(0);
+  
+  const [editingLog, setEditingLog] = useState(null);
+  const [confirmMsg, setConfirmMsg] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+
+  // Admin filters
+  const [filterDriver, setFilterDriver] = useState('all');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
+  const [filterMachine, setFilterMachine] = useState('all');
   
   const [formData, setFormData] = useState({
     driverId: userId || '',
@@ -23,32 +35,31 @@ const DriverEntry = ({ userId }) => {
     farmerId: '',
     date: new Date().toISOString().split('T')[0],
     sessions: [{ start: '', end: '', durationHours: 0 }],
-    diesel: {
-      mode: 'none',
-      value: 0,
-      pricePerLitre: 0,
-      total: 0
-    }
+    diesel: { mode: 'none', value: 0, pricePerLitre: 0, total: 0 }
   });
+
+  const refreshLogs = () => {
+    setAllLogs(getData('rl_driver_logs'));
+  };
 
   useEffect(() => {
     const savedFarmers = getData('rl_farmers');
     setFarmers(savedFarmers.map(f => ({ value: f.id, label: `${f.name} (${f.village})` })));
+    setDrivers(getData('rl_drivers'));
     
     const config = getConfig('rl_pricing_config');
     const price = config?.diesel?.pricePerLitre || 0;
     setDieselPrice(price);
     
-    setFormData(prev => ({
-      ...prev,
-      driverId: userId || prev.driverId,
-      diesel: { ...prev.diesel, pricePerLitre: price }
-    }));
-
-    const logs = getData('rl_driver_logs');
-    const today = new Date().toISOString().split('T')[0];
-    setTodaysLogs(logs.filter(l => l.date === today && (!userId || l.driverId === userId)));
-  }, [userId]);
+    if (!editingLog) {
+      setFormData(prev => ({
+        ...prev,
+        driverId: userId || prev.driverId,
+        diesel: { ...prev.diesel, pricePerLitre: price }
+      }));
+    }
+    refreshLogs();
+  }, [userId, editingLog]);
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -94,38 +105,115 @@ const DriverEntry = ({ userId }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    const billId = generateLogBillId(new Date(formData.date).getFullYear());
-    const logId = generateId('rl_driver_logs');
+    if (!formData.driverId) {
+      setError('Please select a driver (ஓட்டுநரை தேர்ந்தெடுக்கவும்)');
+      return;
+    }
     
     const newLog = {
       ...formData,
-      id: logId,
-      billId, // Mandatory Bill ID integration
       totalHours,
       source: 'driver_log',
       status: 'active'
     };
 
-    addRecord('rl_driver_logs', newLog);
-    setTodaysLogs(prev => [newLog, ...prev]);
+    if (editingLog) {
+      newLog.id = editingLog.id;
+      newLog.billId = editingLog.billId;
+      updateRecord('rl_driver_logs', editingLog.id, newLog);
+      
+      // Cascade to Harvester Jobs
+      const linkedJob = getData('rl_harvester_jobs').find(j => j.linkedLogIds && j.linkedLogIds.includes(editingLog.id));
+      if (linkedJob) {
+        const allLinkedLogs = getData('rl_driver_logs').filter(l => linkedJob.linkedLogIds.includes(l.id));
+        const newTotalHours = allLinkedLogs.reduce((sum,l)=>sum+l.totalHours,0);
+        const newGross = newTotalHours * linkedJob.ratePerHour;
+        const newFinal = Math.max(0, newGross - linkedJob.discount);
+        const newDieselFromLogs = allLinkedLogs.reduce((sum,l)=>sum+(l.diesel?.total||0),0);
+        updateRecord('rl_harvester_jobs', linkedJob.id, {
+          totalHours: newTotalHours,
+          grossAmount: newGross,
+          finalAmount: newFinal,
+          dieselFromLogs: newDieselFromLogs,
+        });
+      }
+      setEditingLog(null);
+    } else {
+      newLog.id = generateId('rl_driver_logs');
+      newLog.billId = generateLogBillId(new Date(formData.date).getFullYear());
+      addRecord('rl_driver_logs', newLog);
+    }
+
+    refreshLogs();
     setSuccess(true);
-    
     setFormData({
       driverId: userId || '',
       machineType: 'harvester_tyre',
       farmerId: '',
       date: new Date().toISOString().split('T')[0],
       sessions: [{ start: '', end: '', durationHours: 0 }],
-      diesel: {
-        mode: 'none',
-        value: 0,
-        pricePerLitre: dieselPrice,
-        total: 0
-      }
+      diesel: { mode: 'none', value: 0, pricePerLitre: dieselPrice, total: 0 }
     });
 
-    setTimeout(() => setSuccess(false), 3000);
+    setTimeout(() => { setSuccess(false); setError(''); }, 3000);
+  };
+
+  const handleEdit = (log) => {
+    setEditingLog(log);
+    setFormData({
+      driverId: log.driverId,
+      machineType: log.machineType,
+      farmerId: log.farmerId,
+      date: log.date,
+      sessions: log.sessions || [{ start: '', end: '', durationHours: 0 }],
+      diesel: log.diesel || { mode: 'none', value: 0, pricePerLitre: dieselPrice, total: 0 }
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteLog = (logId) => {
+    const linkedJob = getData('rl_harvester_jobs').find(j => j.linkedLogIds && j.linkedLogIds.includes(logId));
+    if (linkedJob) {
+      const hasPaid = linkedJob.payments && linkedJob.payments.length > 0;
+      if (hasPaid) {
+        setError('இந்த பதிவு ஒரு செலுத்தப்பட்ட அறுவடை வேலையுடன் இணைக்கப்பட்டுள்ளது. நீக்க முடியாது. (This log is linked to a harvester job that has payments recorded.)');
+        return;
+      } else {
+        setConfirmMsg('இந்த பதிவை நீக்குவது அறுவடை வேலையிலிருந்து தொடர்பை அகற்றும். தொடரவா?');
+        setPendingDeleteId(logId);
+        return;
+      }
+    }
+    setConfirmMsg('இந்த பதிவை நீக்க விரும்புகிறீர்களா?');
+    setPendingDeleteId(logId);
+  };
+
+  const handleConfirmDelete = () => {
+    deleteRecord('rl_driver_logs', pendingDeleteId);
+    
+    // Unlink from job and recalculate
+    const jobs = getData('rl_harvester_jobs');
+    jobs.forEach(job => {
+      if (job.linkedLogIds && job.linkedLogIds.includes(pendingDeleteId)) {
+        const newIds = job.linkedLogIds.filter(id => id !== pendingDeleteId);
+        const allLinkedLogs = getData('rl_driver_logs').filter(l => newIds.includes(l.id));
+        const newTotalHours = allLinkedLogs.reduce((sum,l)=>sum+l.totalHours,0);
+        const newGross = newTotalHours * job.ratePerHour;
+        const newFinal = Math.max(0, newGross - job.discount);
+        const newDieselFromLogs = allLinkedLogs.reduce((sum,l)=>sum+(l.diesel?.total||0),0);
+        updateRecord('rl_harvester_jobs', job.id, { 
+          linkedLogIds: newIds,
+          totalHours: newTotalHours,
+          grossAmount: newGross,
+          finalAmount: newFinal,
+          dieselFromLogs: newDieselFromLogs,
+        });
+      }
+    });
+    
+    setPendingDeleteId(null);
+    setConfirmMsg('');
+    refreshLogs();
   };
 
   const machineOptions = Object.keys(machineTypes).map(key => ({
@@ -133,15 +221,51 @@ const DriverEntry = ({ userId }) => {
     label: `${machineTypes[key].en} (${machineTypes[key].ta})`
   }));
 
+  const driverOptions = drivers.map(d => ({ value: d.id, label: d.name }));
+
+  const logsToDisplay = useMemo(() => {
+    if (userId) {
+      const today = new Date().toISOString().split('T')[0];
+      return allLogs.filter(l => l.date === today && l.driverId === userId);
+    } else {
+      return allLogs.filter(l => {
+        const matchDriver = filterDriver === 'all' || l.driverId === filterDriver;
+        const matchFrom = !filterFromDate || l.date >= filterFromDate;
+        const matchTo = !filterToDate || l.date <= filterToDate;
+        const matchMachine = filterMachine === 'all' || l.machineType === filterMachine;
+        return matchDriver && matchFrom && matchTo && matchMachine;
+      });
+    }
+  }, [allLogs, userId, filterDriver, filterFromDate, filterToDate, filterMachine]);
+
   return (
     <div className="app-container">
       <h1>ஓட்டுநர் பதிவு (Driver Entry)</h1>
       {success && <div className="success-message">வெற்றிகரமாக சேமிக்கப்பட்டது (Successfully Saved)</div>}
+      {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
       <form onSubmit={handleSubmit}>
         <div className="card">
-          <div style={{ marginBottom: '15px', padding: '10px', background: '#EDF2F7', borderRadius: '4px', fontSize: '0.9rem', color: '#4A5568' }}>
-            <strong>Driver:</strong> {userId ? getData('rl_drivers').find(d => d.id === userId)?.name : 'N/A'}
+          {editingLog ? (
+            <div style={{ marginBottom: '15px', padding: '10px', background: '#EBF8FF', color: '#2B6CB0', borderRadius: '4px', fontWeight: 'bold' }}>
+              Editing Log: {editingLog.billId}
+            </div>
+          ) : null}
+          
+          <div style={{ marginBottom: '15px' }}>
+            {!userId ? (
+              <SelectField 
+                english="Driver" tamil="ஓட்டுநர்" 
+                options={driverOptions}
+                value={formData.driverId}
+                onChange={(e) => handleFieldChange('driverId', e.target.value)}
+                required
+              />
+            ) : (
+              <div style={{ padding: '10px', background: '#EDF2F7', borderRadius: '4px', fontSize: '0.9rem', color: '#4A5568' }}>
+                <strong>Driver:</strong> {drivers.find(d => d.id === userId)?.name || 'N/A'}
+              </div>
+            )}
           </div>
           
           <SelectField 
@@ -189,25 +313,70 @@ const DriverEntry = ({ userId }) => {
           />
         </div>
 
-        <Button type="submit" fullWidth>பதிவு செய்க (SAVE LOG)</Button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <Button type="submit" fullWidth>{editingLog ? 'Update Log (பதிவை புதுப்பி)' : 'பதிவு செய்க (SAVE LOG)'}</Button>
+          {editingLog && (
+            <Button onClick={() => { setEditingLog(null); setFormData({...formData, sessions:[{start:'', end:'', durationHours:0}]}); }} variant="danger" fullWidth>Cancel (ரத்து)</Button>
+          )}
+        </div>
       </form>
 
-      {todaysLogs.length > 0 && (
-        <div style={{ marginTop: '30px' }}>
-          <h3>இன்றைய பதிவுகள் (Today's Logs)</h3>
-          {todaysLogs.map(log => (
-            <div key={log.id} className="card" style={{ padding: '15px', borderLeft: '4px solid #1B3A6B' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <strong>{log.billId}</strong>
-                <span style={{ color: '#1A6B55', fontWeight: 'bold' }}>{log.totalHours.toFixed(2)} Hrs</span>
-              </div>
-              <div style={{ fontSize: '0.85rem', color: '#4a5568', marginTop: '5px' }}>
-                Farmer: {farmers.find(f => f.value === log.farmerId)?.label}
-              </div>
-            </div>
-          ))}
+      {confirmMsg && (
+        <div style={{ marginTop: '20px', padding: '15px', background: '#FFF5F5', border: '1px solid #FC8181', borderRadius: '8px' }}>
+          <div style={{ color: '#C53030', fontWeight: 'bold', marginBottom: '10px', textAlign: 'center' }}>
+            {confirmMsg}
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <Button onClick={handleConfirmDelete} fullWidth variant="danger">Yes, Delete (ஆம்)</Button>
+            <Button onClick={() => { setConfirmMsg(''); setPendingDeleteId(null); }} fullWidth variant="outline">Cancel (ரத்து)</Button>
+          </div>
         </div>
       )}
+
+      <div style={{ marginTop: '30px' }}>
+        <h3>{!userId ? 'All Logs (அனைத்து பதிவுகள்)' : 'இன்றைய பதிவுகள் (Today\'s Logs)'}</h3>
+        
+        {!userId && (
+          <div className="card" style={{ marginBottom: '20px' }}>
+            <h4 style={{ margin: '0 0 10px 0', color: '#4A5568' }}>Filters (வடிகட்டி)</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+              <SelectField options={[{value:'all', label:'All Drivers'}].concat(driverOptions)} value={filterDriver} onChange={e=>setFilterDriver(e.target.value)} />
+              <SelectField options={[{value:'all', label:'All Machines'}].concat(machineOptions)} value={filterMachine} onChange={e=>setFilterMachine(e.target.value)} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <input type="date" value={filterFromDate} onChange={e=>setFilterFromDate(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #CBD5E0', width: '100%' }} />
+              <input type="date" value={filterToDate} onChange={e=>setFilterToDate(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #CBD5E0', width: '100%' }} />
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginBottom: '10px', color: '#718096', fontSize: '0.9rem' }}>Showing {logsToDisplay.length} entries</div>
+
+        {logsToDisplay.map(log => (
+          <div key={log.id} className="card" style={{ padding: '15px', borderLeft: '4px solid #1B3A6B' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <strong>{log.billId}</strong> <span style={{ color: '#718096', fontSize: '0.8rem' }}>| {log.date}</span>
+                <div style={{ fontSize: '0.85rem', color: '#4a5568', marginTop: '5px' }}>
+                  Farmer: {farmers.find(f => f.value === log.farmerId)?.label} <br/>
+                  Driver: {drivers.find(d => d.id === log.driverId)?.name} <br/>
+                  Machine: {machineTypes[log.machineType]?.en}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ color: '#1A6B55', fontWeight: 'bold', fontSize: '1.1rem' }}>{log.totalHours.toFixed(2)} Hrs</div>
+              </div>
+            </div>
+            
+            {!userId && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #E2E8F0' }}>
+                <button onClick={() => handleEdit(log)} style={{ background: 'none', border: 'none', color: '#3182CE', cursor: 'pointer', fontWeight: 'bold' }}>Edit (திருத்து)</button>
+                <button onClick={() => handleDeleteLog(log.id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: 'bold' }}>Delete (நீக்கு)</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

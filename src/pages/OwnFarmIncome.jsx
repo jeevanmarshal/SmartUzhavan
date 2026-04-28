@@ -17,7 +17,8 @@ const OwnFarmIncome = () => {
     numberOfBundles: 0,
     pricePerBundle: 0,
     totalIncome: 0,
-    description: ''
+    description: '',
+    source: 'own_farm'
   });
 
   useEffect(() => {
@@ -44,16 +45,7 @@ const OwnFarmIncome = () => {
     addRecord('rl_own_farm_income', entry);
     setEntries(getData('rl_own_farm_income'));
     setShowAddForm(false);
-    setFormData({ 
-      date: new Date().toISOString().split('T')[0], 
-      incomeSource: 'paddy', 
-      numberOfBags: 0, 
-      pricePerBag: 0, 
-      numberOfBundles: 0, 
-      pricePerBundle: 0, 
-      totalIncome: 0, 
-      description: '' 
-    });
+    setFormData({ date: new Date().toISOString().split('T')[0], incomeSource: 'paddy', numberOfBags: 0, pricePerBag: 0, numberOfBundles: 0, pricePerBundle: 0, totalIncome: 0, description: '', source: 'own_farm' });
   };
 
   return (
@@ -65,14 +57,16 @@ const OwnFarmIncome = () => {
 
       {showAddForm && (
         <form onSubmit={handleSave} className="card">
+          <InputField english="Date" tamil="தேதி" type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required />
           <SelectField 
-            english="Income Source" tamil="வருமான வகை"
+            english="Source" tamil="வருமான மூலம்" 
             options={[
               { value: 'paddy', label: 'Paddy (நெல்)' },
               { value: 'vaikool', label: 'Paddy Straw / Vaikool (வைக்கோல்)' }
             ]}
             value={formData.incomeSource}
             onChange={(e) => setFormData({...formData, incomeSource: e.target.value})}
+            required
           />
           
           {formData.incomeSource === 'paddy' ? (
@@ -108,10 +102,10 @@ const OwnFarmIncome = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontWeight: 'bold' }}>
-                  {entry.incomeSource === 'vaikool' ? 'வைக்கோல் (Vaikool)' : 'நெல் (Paddy)'}
+                  {entry.incomeSource === 'vaikool' ? 'வைக்கோல்' : 'நெல்'}
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#718096' }}>
-                  {entry.date} | {entry.incomeSource === 'vaikool' ? `${entry.numberOfBundles} Bundles` : `${entry.numberOfBags} Bags`}
+                  {entry.date} | {entry.incomeSource === 'vaikool' ? `${entry.numberOfBundles} கட்டுகள்` : `${entry.numberOfBags} மூட்டைகள்`}
                 </div>
               </div>
               <div style={{ fontWeight: 'bold', color: '#1A6B55' }}>{formatCurrency(entry.totalIncome)}</div>

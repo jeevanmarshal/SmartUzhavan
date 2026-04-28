@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
-import { getData, saveData } from '../services/storage';
+import { getData, saveData, updateRecord } from '../services/storage';
+import SelectField from '../components/common/SelectField';
 import Button from '../components/common/Button';
 
 const Settings = () => {
   const [status, setStatus] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingData, setPendingData] = useState(null);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [driverPin, setDriverPin] = useState('');
+  const [drivers, setDrivers] = useState([]);
+
+  React.useEffect(() => {
+    setDrivers(getData('rl_drivers').filter(d => d.active));
+  }, []);
 
   const handleExport = () => {
     const collections = [
@@ -30,9 +38,7 @@ const Settings = () => {
     a.href = url;
     a.download = `SmartUzhavan_Backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
-    const now = new Date().toLocaleString();
-    localStorage.setItem('rl_last_backup', now);
-    setStatus(`Backup exported successfully! (${now})`);
+    setStatus('Backup exported successfully! (காப்புப்பிரதி எடுக்கப்பட்டது)');
   };
 
   const handleImport = (e) => {
@@ -79,11 +85,7 @@ const Settings = () => {
       <h1>அமைப்புகள் (Settings)</h1>
 
       <div className="card">
-        <h3>Data Management (தரவு மேலாண்மை)</h3>
-        <div style={{ background: '#F7FAFC', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #E2E8F0' }}>
-          <div style={{ fontSize: '0.85rem', color: '#4A5568' }}>Last Backup Date (கடைசி காப்புப்பிரதி):</div>
-          <div style={{ fontWeight: 'bold', color: '#1B3A6B' }}>{localStorage.getItem('rl_last_backup') || 'Never'}</div>
-        </div>
+        <h3>Backup & Restore (காப்புப்பிரதி)</h3>
         <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '20px' }}>
           Save your data to a file or restore from a previous backup.
         </p>
@@ -149,12 +151,52 @@ const Settings = () => {
            </Button>
         </div>
       </div>
-      
+      <div className="card" style={{ marginTop: '20px' }}>
+        <h3>Driver PIN Management (ஓட்டுநர் கடவுச்சொல்)</h3>
+        <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '15px' }}>
+          Change login PIN for any active driver.
+        </p>
+        <SelectField 
+          english="Select Driver" tamil="ஓட்டுநர்" 
+          options={drivers.map(d => ({ value: d.id, label: d.name }))}
+          value={selectedDriverId}
+          onChange={(e) => setSelectedDriverId(e.target.value)}
+        />
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '10px' }}>
+           <input 
+             type="password" 
+             placeholder="New 4-digit PIN" 
+             maxLength={4}
+             value={driverPin}
+             onChange={(e) => setDriverPin(e.target.value)}
+             style={{ padding: '10px', borderRadius: '4px', border: '1px solid #CBD5E0', flex: 1 }}
+           />
+           <Button 
+             onClick={() => {
+               if (!selectedDriverId) {
+                 setStatus('Please select a driver (ஓட்டுநரை தேர்ந்தெடுக்கவும்)');
+                 return;
+               }
+               if (driverPin && driverPin.length === 4 && !isNaN(driverPin)) {
+                 updateRecord('rl_drivers', selectedDriverId, { pin: driverPin });
+                 setStatus('PIN வெற்றிகரமாக மாற்றப்பட்டது (PIN Updated)');
+                 setDriverPin('');
+                 setSelectedDriverId('');
+               } else {
+                 setStatus('சரியான 4 இலக்க PIN உள்ளிடவும் (Enter 4 digits)');
+               }
+             }}
+           >
+             Update
+           </Button>
+        </div>
+      </div>
+
       <div className="card" style={{ marginTop: '20px' }}>
         <h3>App Info</h3>
-        <div style={{ fontSize: '0.9rem' }}>Version: 3.1.0 (Advanced Edition)</div>
-        <div style={{ fontSize: '0.9rem' }}>Tamil: Noto Sans Tamil (Integrated)</div>
-        <div style={{ fontSize: '0.9rem' }}>Status: Production v3.1 Ready</div>
+        <div style={{ fontSize: '0.9rem' }}>Version: 3.1.0 (Feature Expansion)</div>
+        <div style={{ fontSize: '0.9rem' }}>Tamil: Noto Sans Tamil (Server Rendered)</div>
+        <div style={{ fontSize: '0.9rem' }}>Status: Production Ready (v3.1 Aligned)</div>
       </div>
     </div>
   );

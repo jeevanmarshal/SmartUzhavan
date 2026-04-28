@@ -5,68 +5,53 @@ import SelectField from '../components/common/SelectField';
 import InputField from '../components/common/InputField';
 
 const DriverDashboard = ({ userId }) => {
-  const [filterMode, setFilterMode] = useState('month'); // 'month' or 'season'
+  const [logs, setLogs] = useState([]);
+  const [salaries, setSalaries] = useState([]);
+  const [driver, setDriver] = useState(null);
+  const [filterMode, setFilterMode] = useState('month');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedSeason, setSelectedSeason] = useState('SAM');
+  const [selectedSeason, setSelectedSeason] = useState('KUR');
+  const [seasonYear, setSeasonYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     const allDrivers = getData('rl_drivers');
     setDriver(allDrivers.find(d => d.id === userId));
 
-    setLogs(getData('rl_driver_logs').filter(l => l.driverId === userId));
-    setSalaries(getData('rl_driver_salary').filter(s => s.driverId === userId));
+    const allLogs = getData('rl_driver_logs');
+    setLogs(allLogs.filter(l => l.driverId === userId));
+
+    const allSalaries = getData('rl_driver_salary');
+    setSalaries(allSalaries.filter(s => s.driverId === userId));
   }, [userId]);
 
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      const logDate = new Date(log.date);
-      if (filterMode === 'month') {
-        return (logDate.getMonth() + 1) === parseInt(selectedMonth) && 
-               logDate.getFullYear() === parseInt(selectedYear);
-      } else {
-        const year = parseInt(selectedYear);
-        let start, end;
-        if (selectedSeason === 'KUR') {
-          start = new Date(`${year}-06-01`);
-          end = new Date(`${year}-09-30`);
-        } else if (selectedSeason === 'SAM') {
-          start = new Date(`${year}-08-01`);
-          end = new Date(`${year + 1}-01-31`);
-        } else if (selectedSeason === 'THA') {
-          start = new Date(`${year}-10-01`);
-          end = new Date(`${year + 1}-01-31`);
-        }
-        return logDate >= start && logDate <= end;
-      }
-    });
-  }, [logs, filterMode, selectedMonth, selectedYear, selectedSeason]);
-
-  const filteredSalaries = useMemo(() => {
-    return salaries.filter(sal => {
-      const salDate = new Date(sal.date);
-      if (filterMode === 'month') {
-        return (salDate.getMonth() + 1) === parseInt(selectedMonth) && 
-               salDate.getFullYear() === parseInt(selectedYear);
-      } else {
-        const year = parseInt(selectedYear);
-        let start, end;
-        if (selectedSeason === 'KUR') {
-          start = new Date(`${year}-06-01`);
-          end = new Date(`${year}-09-30`);
-        } else if (selectedSeason === 'SAM') {
-          start = new Date(`${year}-08-01`);
-          end = new Date(`${year + 1}-01-31`);
-        } else if (selectedSeason === 'THA') {
-          start = new Date(`${year}-10-01`);
-          end = new Date(`${year + 1}-01-31`);
-        }
-        return salDate >= start && salDate <= end;
-      }
-    });
-  }, [salaries, filterMode, selectedMonth, selectedYear, selectedSeason]);
-
   const stats = useMemo(() => {
+    const filterData = (data) => data.filter(item => {
+      const d = new Date(item.date);
+      if (filterMode === 'month') {
+        return (d.getMonth() + 1) === Number(selectedMonth) && d.getFullYear() === Number(selectedYear);
+      } else {
+        const year = Number(seasonYear);
+        if (selectedSeason === 'KUR') {
+          const start = new Date(year, 5, 1);
+          const end = new Date(year, 8, 30);
+          return d >= start && d <= end;
+        } else if (selectedSeason === 'SAM') {
+          const start = new Date(year, 7, 1);
+          const end = new Date(year + 1, 0, 31);
+          return d >= start && d <= end;
+        } else if (selectedSeason === 'THA') {
+          const start = new Date(year, 9, 1);
+          const end = new Date(year + 1, 0, 31);
+          return d >= start && d <= end;
+        }
+        return true;
+      }
+    });
+
+    const filteredLogs = filterData(logs);
+    const filteredSalaries = filterData(salaries);
+
     const totalHours = filteredLogs.reduce((sum, l) => sum + (l.totalHours || 0), 0);
     const uniqueDays = new Set(filteredLogs.map(l => l.date)).size;
 
@@ -90,7 +75,7 @@ const DriverDashboard = ({ userId }) => {
       totalExtra: extra,
       due: earned - received
     };
-  }, [filteredLogs, filteredSalaries]);
+  }, [logs, salaries, filterMode, selectedMonth, selectedYear, selectedSeason, seasonYear]);
 
   return (
     <div className="app-container">
@@ -98,53 +83,6 @@ const DriverDashboard = ({ userId }) => {
         <h2 style={{ margin: 0 }}>வணக்கம், {driver?.name}</h2>
         <p style={{ opacity: 0.8, fontSize: '0.9rem' }}>ஓட்டுநர் மேலாண்மை பலகை (Driver Dashboard)</p>
         
-        <div style={{ marginTop: '20px', display: 'flex', gap: '10px', background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px' }}>
-          <button 
-            onClick={() => setFilterMode('month')}
-            style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '4px', background: filterMode === 'month' ? 'white' : 'transparent', color: filterMode === 'month' ? '#1B3A6B' : 'white', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            By Month (மாதம்)
-          </button>
-          <button 
-            onClick={() => setFilterMode('season')}
-            style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '4px', background: filterMode === 'season' ? 'white' : 'transparent', color: filterMode === 'season' ? '#1B3A6B' : 'white', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            By Season (பருவம்)
-          </button>
-        </div>
-
-        <div style={{ marginTop: '15px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          {filterMode === 'month' ? (
-            <SelectField 
-              options={[
-                { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
-                { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
-                { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
-                { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' }
-              ]}
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              light
-            />
-          ) : (
-            <SelectField 
-              options={[
-                { value: 'KUR', label: 'Kuruvai (குறுவை)' },
-                { value: 'SAM', label: 'Samba (சம்பா)' },
-                { value: 'THA', label: 'Thaladi (தலடி)' }
-              ]}
-              value={selectedSeason}
-              onChange={(e) => setSelectedSeason(e.target.value)}
-              light
-            />
-          )}
-          <InputField 
-            type="number" value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            light
-          />
-        </div>
-
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
           <div>
             <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Total Hours Worked</div>
@@ -155,6 +93,56 @@ const DriverDashboard = ({ userId }) => {
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.daysWorked}</div>
           </div>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '20px' }}>
+        <SelectField 
+          english="Filter By" tamil="வடிகட்டி" 
+          options={[
+            { value: 'month', label: 'By Month (மாதம் வாரியாக)' },
+            { value: 'season', label: 'By Season (பருவம் வாரியாக)' }
+          ]}
+          value={filterMode}
+          onChange={(e) => setFilterMode(e.target.value)}
+        />
+        {filterMode === 'month' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <SelectField 
+              english="Month" tamil="மாதம்" 
+              options={[
+                { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
+                { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
+                { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
+                { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' }
+              ]}
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            />
+            <InputField 
+              english="Year" tamil="ஆண்டு" type="number" 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+            />
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <SelectField 
+              english="Season" tamil="பருவம்" 
+              options={[
+                { value: 'KUR', label: 'KUR (குறுவை)' },
+                { value: 'SAM', label: 'SAM (சம்பா)' },
+                { value: 'THA', label: 'THA (தாளடி)' }
+              ]}
+              value={selectedSeason}
+              onChange={(e) => setSelectedSeason(e.target.value)}
+            />
+            <InputField 
+              english="Year" tamil="ஆண்டு" type="number" 
+              value={seasonYear}
+              onChange={(e) => setSeasonYear(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>

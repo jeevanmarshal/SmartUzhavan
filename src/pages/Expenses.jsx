@@ -52,8 +52,7 @@ const Expenses = () => {
   };
 
   const handleSourceChange = (newSource) => {
-    setFormData({
-      ...formData,
+    setFormData({...formData,
       source: newSource,
       category: CATEGORY_MAP[newSource][0].value
     });
@@ -92,20 +91,15 @@ const Expenses = () => {
         <SelectField 
           english="Expense Type" tamil="செலவு வகை" 
           options={[
-            { value: 'business', label: 'Business (வியாபார செலவு)' },
-            { value: 'own_farm', label: 'Own Farm (சொந்த பண்ணை செலவு)' },
-            { value: 'home_expense', label: 'Home Expense (வீட்டு செலவு)' },
+            { value: 'business', label: 'வியாபார செலவு (Business)' },
+            { value: 'own_farm', label: 'சொந்த பண்ணை செலவு (Own Farm)' },
+            { value: 'home_expense', label: 'வீட்டு செலவு (Home)' },
           ]}
           value={formData.source}
           onChange={(e) => handleSourceChange(e.target.value)}
         />
         <SelectField 
-          english="Category" tamil="வகை" 
-          options={CATEGORY_MAP[formData.source].map(c => ({
-            value: c.value,
-            label: `${c.en} (${c.ta})`
-          }))} 
-          value={formData.category}
+          english="Category" tamil="வகை" options={CATEGORY_MAP[formData.source]} value={formData.category}
           onChange={(e) => setFormData({...formData, category: e.target.value})}
         />
         <InputField 
@@ -125,9 +119,7 @@ const Expenses = () => {
           <div key={exp.id} className="card" style={{ padding: '12px', borderLeft: '4px solid #C53030' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontWeight: '700' }}>
-                  {CATEGORY_MAP[exp.source]?.find(c => c.value === exp.category)?.ta || exp.category}
-                </div>
+                <div style={{ fontWeight: '700' }}>{CATEGORY_MAP[exp.source]?.find(c => c.value === exp.category)?.ta || exp.category}</div>
                 <div style={{ fontSize: '0.85rem', color: '#718096' }}>{exp.date} | {exp.description}</div>
               </div>
               <div style={{ fontWeight: 'bold', color: '#C53030' }}>- {formatCurrency(exp.amount)}</div>

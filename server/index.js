@@ -67,7 +67,7 @@ app.post('/api/pdf/driver-salary-statement', async (req, res) => {
 });
 
 // Monthly Summary Report
-app.post('/api/pdf/report/monthly', async (req, res) => {
+app.post('/api/pdf/reports/financial-summary', async (req, res) => {
     try {
         const { month, year, incomeRows, expenseRows, totals } = req.body;
         const pdfBuffer = await generateMonthlyReport(month, year, incomeRows, expenseRows, totals);
@@ -82,7 +82,7 @@ app.post('/api/pdf/report/monthly', async (req, res) => {
 });
 
 // Machine-wise Report
-app.post('/api/pdf/report/machine', async (req, res) => {
+app.post('/api/pdf/reports/machine-usage', async (req, res) => {
     try {
         const { season, year, machineRows } = req.body;
         const pdfBuffer = await generateMachineReport(season, year, machineRows);
@@ -97,7 +97,7 @@ app.post('/api/pdf/report/machine', async (req, res) => {
 });
 
 // Farmer Dues Report
-app.post('/api/pdf/report/farmer-dues', async (req, res) => {
+app.post('/api/pdf/reports/farmer-balance', async (req, res) => {
     try {
         const { farmerRows, asOfDate } = req.body;
         const pdfBuffer = await generateFarmerDuesReport(farmerRows, asOfDate);
@@ -112,7 +112,7 @@ app.post('/api/pdf/report/farmer-dues', async (req, res) => {
 });
 
 // Driver Payroll Report
-app.post('/api/pdf/report/driver-payroll', async (req, res) => {
+app.post('/api/pdf/reports/driver-payroll', async (req, res) => {
     try {
         const { month, year, driverRows } = req.body;
         const pdfBuffer = await generateDriverPayrollReport(month, year, driverRows);
@@ -127,7 +127,7 @@ app.post('/api/pdf/report/driver-payroll', async (req, res) => {
 });
 
 // Seasonal Report
-app.post('/api/pdf/report/seasonal', async (req, res) => {
+app.post('/api/pdf/reports/seasonal-report', async (req, res) => {
     try {
         const { season, year, jobRows, totals } = req.body;
         const pdfBuffer = await generateSeasonalReport(season, year, jobRows, totals);

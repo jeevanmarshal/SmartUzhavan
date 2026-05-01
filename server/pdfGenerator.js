@@ -241,4 +241,573 @@ const generateRentalReceipt = async (rental, farmer) => {
     });
 };
 
-module.exports = { generateHarvesterBill, generateStatement, generateRentalReceipt };
+const generateDriverSalaryStatement = async (driver, salaryRecords, fromDate, toDate) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 50, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            // Header
+            doc.fontSize(18).font('Helvetica-Bold').text('Driver Salary Statement', { align: 'center' });
+            doc.fontSize(11).font('Helvetica').text(`Driver: ${driver.name}`, { align: 'left' });
+            doc.text(`Village: ${driver.village || 'N/A'}`, { align: 'left' });
+            
+            const period = fromDate && toDate ? `${fromDate} to ${toDate}` : 'All Records';
+            doc.text(`Period: ${period}`, { align: 'left' });
+            doc.moveDown();
+            
+            // Table header
+            const tableTop = doc.y;
+            const col1 = 50, col2 = 130, col3 = 180, col4 = 230, col5 = 280, col6 = 330, col7 = 380, col8 = 430;
+            const rowHeight = 20;
+            
+            doc.fontSize(10).font('Helvetica-Bold');
+            doc.text('Date', col1, tableTop);
+            doc.text('Base', col2, tableTop);
+            doc.text('Bonus', col3, tableTop);
+            doc.text('Extra', col4, tableTop);
+            doc.text('Advance', col5, tableTop);
+            doc.text('Net Pay', col6, tableTop);
+            doc.text('Paid', col7, tableTop);
+            doc.text('Balance', col8, tableTop);
+            
+            doc.moveTo(col1, tableTop + 15).lineTo(500, tableTop + 15).stroke();
+            
+            // Table rows
+            let currentY = tableTop + 25;
+            let totalNetPay = 0;
+            let totalPaid = 0;
+            
+            doc.fontSize(9).font('Helvetica');
+            (salaryRecords || []).forEach(salary => {
+                const netPay = (parseFloat(salary.baseSalary) || 0) + (parseFloat(salary.bonus) || 0) + (parseFloat(salary.extraAmount) || 0) - (parseFloat(salary.advance) || 0);
+                const paid = (salary.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+                const balance = netPay - paid;
+                
+                totalNetPay += netPay;
+                totalPaid += paid;
+                
+                doc.text(salary.date, col1, currentY);
+                doc.text(formatCurrency(salary.baseSalary), col2, currentY);
+                doc.text(formatCurrency(salary.bonus), col3, currentY);
+                doc.text(formatCurrency(salary.extraAmount), col4, currentY);
+                doc.text(formatCurrency(salary.advance), col5, currentY);
+                doc.text(formatCurrency(netPay), col6, currentY);
+                doc.text(formatCurrency(paid), col7, currentY);
+                doc.text(formatCurrency(balance), col8, currentY);
+                
+                currentY += rowHeight;
+            });
+            
+            // Totals row
+            doc.moveTo(col1, currentY).lineTo(500, currentY).stroke();
+            doc.font('Helvetica-Bold');
+            doc.text('TOTAL', col1, currentY + 5);
+            doc.text(formatCurrency(totalNetPay), col6, currentY + 5);
+            doc.text(formatCurrency(totalPaid), col7, currentY + 5);
+            doc.text(formatCurrency(totalNetPay - totalPaid), col8, currentY + 5);
+            
+            doc.moveDown(2);
+            doc.fontSize(10).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const generateMonthlyReport = async (month, year, incomeRows, expenseRows, totals) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            doc.fontSize(16).font('Helvetica-Bold').text(`Monthly Summary - ${month}/${year}`, { align: 'center' });
+            doc.moveDown();
+            
+            // Income section
+            doc.fontSize(12).font('Helvetica-Bold').text('Income by Source', { underline: true });
+            doc.fontSize(9).font('Helvetica');
+            const incomeTop = doc.y;
+            doc.text('Source', 50, incomeTop);
+            doc.text('Amount', 450, incomeTop, { width: 100, align: 'right' });
+            
+            let incomeY = incomeTop + 20;
+            let totalIncome = 0;
+            (incomeRows || []).forEach(row => {
+                const amount = parseFloat(row.amount) || 0;
+                totalIncome += amount;
+                doc.text(row.source, 50, incomeY);
+                doc.text(formatCurrency(amount), 450, incomeY, { width: 100, align: 'right' });
+                incomeY += 20;
+            });
+            
+            doc.font('Helvetica-Bold');
+            doc.text('Total Income:', 50, incomeY);
+            doc.text(formatCurrency(totalIncome), 450, incomeY, { width: 100, align: 'right' });
+            
+            doc.moveDown(2);
+            
+            // Expense section
+            doc.fontSize(12).font('Helvetica-Bold').text('Expense by Source', { underline: true });
+            doc.fontSize(9).font('Helvetica');
+            const expenseTop = doc.y;
+            doc.text('Source', 50, expenseTop);
+            doc.text('Amount', 450, expenseTop, { width: 100, align: 'right' });
+            
+            let expenseY = expenseTop + 20;
+            let totalExpense = 0;
+            (expenseRows || []).forEach(row => {
+                const amount = parseFloat(row.amount) || 0;
+                totalExpense += amount;
+                doc.text(row.source, 50, expenseY);
+                doc.text(formatCurrency(amount), 450, expenseY, { width: 100, align: 'right' });
+                expenseY += 20;
+            });
+            
+            doc.font('Helvetica-Bold');
+            doc.text('Total Expense:', 50, expenseY);
+            doc.text(formatCurrency(totalExpense), 450, expenseY, { width: 100, align: 'right' });
+            
+            doc.moveDown(2);
+            
+            // Net profit
+            const netProfit = totalIncome - totalExpense;
+            doc.fontSize(11).font('Helvetica-Bold').text(`Net Profit: ${formatCurrency(netProfit)}`, { align: 'center' });
+            
+            doc.moveDown();
+            doc.fontSize(8).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const generateMachineReport = async (season, year, machineRows) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            doc.fontSize(16).font('Helvetica-Bold').text(`Machine Report - ${season} ${year}`, { align: 'center' });
+            doc.moveDown();
+            
+            const tableTop = doc.y;
+            const col1 = 50, col2 = 150, col3 = 220, col4 = 290, col5 = 360, col6 = 430;
+            
+            doc.fontSize(9).font('Helvetica-Bold');
+            doc.text('Machine', col1, tableTop);
+            doc.text('Jobs', col2, tableTop);
+            doc.text('Hours', col3, tableTop);
+            doc.text('Revenue', col4, tableTop);
+            doc.text('Expense', col5, tableTop);
+            doc.text('Profit', col6, tableTop);
+            
+            doc.moveTo(col1, tableTop + 15).lineTo(500, tableTop + 15).stroke();
+            
+            let currentY = tableTop + 25;
+            doc.fontSize(8).font('Helvetica');
+            (machineRows || []).forEach(row => {
+                doc.text(row.machineType || 'N/A', col1, currentY);
+                doc.text(String(row.jobCount || 0), col2, currentY);
+                doc.text(String((row.totalHours || 0).toFixed(1)), col3, currentY);
+                doc.text(formatCurrency(row.revenue), col4, currentY);
+                doc.text(formatCurrency(row.expense), col5, currentY);
+                doc.text(formatCurrency(row.profit), col6, currentY);
+                currentY += 18;
+            });
+            
+            doc.moveDown();
+            doc.fontSize(8).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const generateFarmerDuesReport = async (farmerRows, asOfDate) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            doc.fontSize(16).font('Helvetica-Bold').text('Outstanding Balances', { align: 'center' });
+            doc.fontSize(10).font('Helvetica').text(`As of ${asOfDate || new Date().toISOString().slice(0,10)}`, { align: 'center' });
+            doc.moveDown();
+            
+            const tableTop = doc.y;
+            const col1 = 50, col2 = 150, col3 = 250, col4 = 330, col5 = 410;
+            
+            doc.fontSize(9).font('Helvetica-Bold');
+            doc.text('Farmer', col1, tableTop);
+            doc.text('Village', col2, tableTop);
+            doc.text('Harvester Due', col3, tableTop);
+            doc.text('Rental Due', col4, tableTop);
+            doc.text('Total Due', col5, tableTop);
+            
+            doc.moveTo(col1, tableTop + 15).lineTo(500, tableTop + 15).stroke();
+            
+            let currentY = tableTop + 25;
+            let totalDue = 0;
+            doc.fontSize(8).font('Helvetica');
+            
+            const sorted = [...(farmerRows || [])].sort((a, b) => (parseFloat(b.totalDue) || 0) - (parseFloat(a.totalDue) || 0));
+            
+            sorted.forEach(row => {
+                const harvesterDue = parseFloat(row.harvesterDue) || 0;
+                const rentalDue = parseFloat(row.rentalDue) || 0;
+                const rowTotal = harvesterDue + rentalDue;
+                totalDue += rowTotal;
+                
+                doc.text(row.farmerName || 'N/A', col1, currentY);
+                doc.text(row.village || 'N/A', col2, currentY);
+                doc.text(formatCurrency(harvesterDue), col3, currentY);
+                doc.text(formatCurrency(rentalDue), col4, currentY);
+                doc.text(formatCurrency(rowTotal), col5, currentY);
+                currentY += 18;
+            });
+            
+            doc.moveTo(col1, currentY).lineTo(500, currentY).stroke();
+            doc.font('Helvetica-Bold');
+            doc.text('GRAND TOTAL', col1, currentY + 5);
+            doc.text(formatCurrency(totalDue), col5, currentY + 5);
+            
+            doc.moveDown();
+            doc.fontSize(8).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const generateDriverPayrollReport = async (month, year, driverRows) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            doc.fontSize(16).font('Helvetica-Bold').text(`Driver Payroll - ${month}/${year}`, { align: 'center' });
+            doc.moveDown();
+            
+            const tableTop = doc.y;
+            const col1 = 50, col2 = 180, col3 = 270, col4 = 340, col5 = 410;
+            
+            doc.fontSize(9).font('Helvetica-Bold');
+            doc.text('Driver', col1, tableTop);
+            doc.text('Hours', col2, tableTop);
+            doc.text('Earned', col3, tableTop);
+            doc.text('Paid', col4, tableTop);
+            doc.text('Balance', col5, tableTop);
+            
+            doc.moveTo(col1, tableTop + 15).lineTo(500, tableTop + 15).stroke();
+            
+            let currentY = tableTop + 25;
+            let totalHours = 0, totalEarned = 0, totalPaid = 0, totalBalance = 0;
+            doc.fontSize(8).font('Helvetica');
+            
+            (driverRows || []).forEach(row => {
+                const hours = parseFloat(row.hours) || 0;
+                const earned = parseFloat(row.earned) || 0;
+                const paid = parseFloat(row.paid) || 0;
+                const balance = earned - paid;
+                
+                totalHours += hours;
+                totalEarned += earned;
+                totalPaid += paid;
+                totalBalance += balance;
+                
+                doc.text(row.driverName || 'N/A', col1, currentY);
+                doc.text(String(hours.toFixed(1)), col2, currentY);
+                doc.text(formatCurrency(earned), col3, currentY);
+                doc.text(formatCurrency(paid), col4, currentY);
+                doc.text(formatCurrency(balance), col5, currentY);
+                currentY += 18;
+            });
+            
+            doc.moveTo(col1, currentY).lineTo(500, currentY).stroke();
+            doc.font('Helvetica-Bold');
+            doc.text('TOTAL', col1, currentY + 5);
+            doc.text(String(totalHours.toFixed(1)), col2, currentY + 5);
+            doc.text(formatCurrency(totalEarned), col3, currentY + 5);
+            doc.text(formatCurrency(totalPaid), col4, currentY + 5);
+            doc.text(formatCurrency(totalBalance), col5, currentY + 5);
+            
+            doc.moveDown();
+            doc.fontSize(8).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const generateSeasonalReport = async (season, year, jobRows, totals) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            doc.fontSize(16).font('Helvetica-Bold').text(`Seasonal Report - ${season} ${year}`, { align: 'center' });
+            doc.moveDown();
+            
+            const tableTop = doc.y;
+            const col1 = 50, col2 = 120, col3 = 200, col4 = 280, col5 = 340, col6 = 400, col7 = 450;
+            
+            doc.fontSize(8).font('Helvetica-Bold');
+            doc.text('Bill ID', col1, tableTop);
+            doc.text('Farmer', col2, tableTop);
+            doc.text('Hours', col3, tableTop);
+            doc.text('Amount', col4, tableTop);
+            doc.text('Paid', col5, tableTop);
+            doc.text('Balance', col6, tableTop);
+            
+            doc.moveTo(col1, tableTop + 12).lineTo(500, tableTop + 12).stroke();
+            
+            let currentY = tableTop + 18;
+            doc.fontSize(7).font('Helvetica');
+            
+            (jobRows || []).forEach(row => {
+                const amount = parseFloat(row.amount) || 0;
+                const paid = parseFloat(row.paid) || 0;
+                const balance = amount - paid;
+                
+                doc.text(row.billId || 'N/A', col1, currentY);
+                doc.text(row.farmerName || 'N/A', col2, currentY);
+                doc.text(String((parseFloat(row.hours) || 0).toFixed(1)), col3, currentY);
+                doc.text(formatCurrency(amount), col4, currentY);
+                doc.text(formatCurrency(paid), col5, currentY);
+                doc.text(formatCurrency(balance), col6, currentY);
+                currentY += 15;
+            });
+            
+            doc.moveTo(col1, currentY).lineTo(500, currentY).stroke();
+            doc.font('Helvetica-Bold').fontSize(8);
+            if (totals) {
+                doc.text('TOTAL', col1, currentY + 5);
+                doc.text(formatCurrency(totals.totalAmount || 0), col4, currentY + 5);
+                doc.text(formatCurrency(totals.totalPaid || 0), col5, currentY + 5);
+                doc.text(formatCurrency((totals.totalAmount || 0) - (totals.totalPaid || 0)), col6, currentY + 5);
+            }
+            
+            doc.moveDown();
+            doc.fontSize(8).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const generateWorkerIndividualReport = async (worker, entries) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            doc.fontSize(16).font('Helvetica-Bold').text(`Worker Report`, { align: 'center' });
+            doc.fontSize(11).font('Helvetica').text(`Name: ${worker.name}`, { align: 'left' });
+            doc.text(`Village: ${worker.village || 'N/A'}`, { align: 'left' });
+            doc.text(`Phone: ${worker.phone || 'N/A'}`, { align: 'left' });
+            doc.moveDown();
+            
+            const tableTop = doc.y;
+            const col1 = 50, col2 = 130, col3 = 190, col4 = 250, col5 = 310, col6 = 370, col7 = 430;
+            
+            doc.fontSize(8).font('Helvetica-Bold');
+            doc.text('Date', col1, tableTop);
+            doc.text('Work Type', col2, tableTop);
+            doc.text('Base', col3, tableTop);
+            doc.text('Bonus', col4, tableTop);
+            doc.text('Extra', col5, tableTop);
+            doc.text('Advance', col6, tableTop);
+            doc.text('Net Pay', col7, tableTop);
+            
+            doc.moveTo(col1, tableTop + 12).lineTo(500, tableTop + 12).stroke();
+            
+            let currentY = tableTop + 18;
+            let totalNetPay = 0;
+            doc.fontSize(7).font('Helvetica');
+            
+            (entries || []).forEach(entry => {
+                const netPay = (parseFloat(entry.baseSalary) || 0) + (parseFloat(entry.bonus) || 0) + (parseFloat(entry.extraAmount) || 0) - (parseFloat(entry.advance) || 0);
+                totalNetPay += netPay;
+                
+                doc.text(entry.date, col1, currentY);
+                doc.text(entry.workType || 'N/A', col2, currentY);
+                doc.text(formatCurrency(entry.baseSalary), col3, currentY);
+                doc.text(formatCurrency(entry.bonus), col4, currentY);
+                doc.text(formatCurrency(entry.extraAmount), col5, currentY);
+                doc.text(formatCurrency(entry.advance), col6, currentY);
+                doc.text(formatCurrency(netPay), col7, currentY);
+                currentY += 15;
+            });
+            
+            doc.moveTo(col1, currentY).lineTo(500, currentY).stroke();
+            doc.font('Helvetica-Bold').fontSize(8);
+            doc.text('TOTAL', col1, currentY + 5);
+            doc.text(formatCurrency(totalNetPay), col7, currentY + 5);
+            
+            doc.moveDown();
+            doc.fontSize(8).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const generateWorkerFilteredReport = async (entries, filters) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            doc.fontSize(16).font('Helvetica-Bold').text('Filtered Worker Report', { align: 'center' });
+            doc.fontSize(9).font('Helvetica');
+            if (filters) {
+                if (filters.worker) doc.text(`Worker: ${filters.worker}`);
+                if (filters.dateFrom) doc.text(`From: ${filters.dateFrom}`);
+                if (filters.dateTo) doc.text(`To: ${filters.dateTo}`);
+                if (filters.workType) doc.text(`Work Type: ${filters.workType}`);
+            }
+            doc.moveDown();
+            
+            const tableTop = doc.y;
+            const col1 = 50, col2 = 150, col3 = 250, col4 = 330;
+            
+            doc.fontSize(8).font('Helvetica-Bold');
+            doc.text('Worker', col1, tableTop);
+            doc.text('Date', col2, tableTop);
+            doc.text('Work Type', col3, tableTop);
+            doc.text('Net Pay', col4, tableTop);
+            
+            doc.moveTo(col1, tableTop + 12).lineTo(500, tableTop + 12).stroke();
+            
+            let currentY = tableTop + 18;
+            let totalAmount = 0;
+            let workerCount = new Set();
+            doc.fontSize(7).font('Helvetica');
+            
+            (entries || []).forEach(entry => {
+                const netPay = (parseFloat(entry.baseSalary) || 0) + (parseFloat(entry.bonus) || 0) + (parseFloat(entry.extraAmount) || 0) - (parseFloat(entry.advance) || 0);
+                totalAmount += netPay;
+                workerCount.add(entry.workerName || entry.workerId);
+                
+                doc.text(entry.workerName || entry.workerId, col1, currentY);
+                doc.text(entry.date, col2, currentY);
+                doc.text(entry.workType || 'N/A', col3, currentY);
+                doc.text(formatCurrency(netPay), col4, currentY);
+                currentY += 15;
+            });
+            
+            doc.moveTo(col1, currentY).lineTo(500, currentY).stroke();
+            doc.fontSize(8).font('Helvetica-Bold');
+            doc.text('SUMMARY', col1, currentY + 5);
+            doc.text(`Total Workers: ${workerCount.size}`, col1, currentY + 20);
+            doc.text(`Total Amount: ${formatCurrency(totalAmount)}`, col1, currentY + 35);
+            
+            doc.moveDown(3);
+            doc.fontSize(8).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const generateWorkerOverallReport = async (summary) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40, size: 'A4' });
+            const buffers = [];
+            
+            doc.on('data', (chunk) => buffers.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('error', reject);
+            
+            doc.fontSize(16).font('Helvetica-Bold').text('All Workers Summary', { align: 'center' });
+            doc.moveDown();
+            
+            const tableTop = doc.y;
+            const col1 = 50, col2 = 300, col3 = 380;
+            
+            doc.fontSize(8).font('Helvetica-Bold');
+            doc.text('Worker', col1, tableTop);
+            doc.text('Total Days', col2, tableTop);
+            doc.text('Total Earned', col3, tableTop);
+            
+            doc.moveTo(col1, tableTop + 12).lineTo(500, tableTop + 12).stroke();
+            
+            let currentY = tableTop + 18;
+            let grandTotal = 0;
+            doc.fontSize(7).font('Helvetica');
+            
+            (summary || []).forEach(row => {
+                const earned = parseFloat(row.totalEarned) || 0;
+                grandTotal += earned;
+                
+                doc.text(row.workerName || 'N/A', col1, currentY);
+                doc.text(String(row.totalDays || 0), col2, currentY);
+                doc.text(formatCurrency(earned), col3, currentY);
+                currentY += 18;
+            });
+            
+            doc.moveTo(col1, currentY).lineTo(500, currentY).stroke();
+            doc.fontSize(8).font('Helvetica-Bold');
+            doc.text('GRAND TOTAL', col1, currentY + 5);
+            doc.text(formatCurrency(grandTotal), col3, currentY + 5);
+            
+            doc.moveDown();
+            doc.fontSize(8).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: 'right' });
+            
+            doc.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+module.exports = { generateHarvesterBill, generateStatement, generateRentalReceipt, generateDriverSalaryStatement, generateMonthlyReport, generateMachineReport, generateFarmerDuesReport, generateDriverPayrollReport, generateSeasonalReport, generateWorkerIndividualReport, generateWorkerFilteredReport, generateWorkerOverallReport };

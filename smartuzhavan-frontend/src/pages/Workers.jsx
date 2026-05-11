@@ -115,7 +115,7 @@ const Workers = () => {
   }, [entries, filterWorker, filterFromDate, filterToDate, filterWorkType]);
 
   const handlePDF = async (type) => {
-    const url = import.meta.env.VITE_PDF_API_URL || 'http://localhost:5000/api/pdf';
+    const url = import.meta.env.VITE_PDF_API_URL || 'https://smartuzhavan-production.up.railway.app/api/pdf';
     let endpoint = '';
     let payload = {};
 

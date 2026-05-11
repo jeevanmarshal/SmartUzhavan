@@ -150,7 +150,7 @@ const Drivers = ({ userId }) => {
   if (toDate) filteredSalaries = filteredSalaries.filter(s => s.date <= toDate);
 
   const handlePDF = async () => {
-    const url = import.meta.env.VITE_PDF_API_URL || 'http://localhost:5000/api/pdf';
+    const url = import.meta.env.VITE_PDF_API_URL || 'https://smartuzhavan-production.up.railway.app/api/pdf';
     let driverObj = null;
     if (userId) {
       driverObj = drivers.find(d => d.id === userId);

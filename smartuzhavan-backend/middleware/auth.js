@@ -57,4 +57,7 @@ const checkRole = (allowedRoles) => {
   };
 };
 
-module.exports = { isAuthenticated, checkRole };
+const isAdmin = checkRole(['admin', 'super_admin']);
+const isSuperAdmin = checkRole(['super_admin']);
+
+module.exports = { isAuthenticated, checkRole, isAdmin, isSuperAdmin };

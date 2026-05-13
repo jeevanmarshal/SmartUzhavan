@@ -4,6 +4,8 @@ const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Farmer = require('../models/Farmer');
 const path = require('path');
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Force Google DNS to resolve Atlas SRV records
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const seedData = async () => {

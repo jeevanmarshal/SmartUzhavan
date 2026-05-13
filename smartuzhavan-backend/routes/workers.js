@@ -80,6 +80,74 @@ router.get('/', isAuthenticated, async (req, res) => {
   }
 });
 
+// --- WORKER RECORDS ---
+
+// @route   POST /api/workers/records
+router.post('/records', isAuthenticated, auditLog('CREATE', 'WorkerRecord'), async (req, res) => {
+    try {
+      const record = new WorkerRecord({
+        ...req.body,
+        createdBy: req.session.userId
+      });
+      await record.save();
+      return sendResponse(res, 201, record);
+    } catch (error) {
+      console.error(error);
+      return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    }
+});
+
+// @route   GET /api/workers/records/all
+router.get('/records/all', isAuthenticated, async (req, res) => {
+  try {
+    const queryObj = { isDeleted: false };
+    if (req.query.worker_id) queryObj.worker_id = req.query.worker_id;
+    if (req.query.work_type) queryObj.work_type = req.query.work_type;
+    if (req.query.status) queryObj.status = req.query.status;
+    if (req.query.fromDate && req.query.toDate) {
+      queryObj.date = { $gte: new Date(req.query.fromDate), $lte: new Date(req.query.toDate) };
+    }
+
+    const records = await WorkerRecord.find(queryObj).sort({ date: -1 }).populate('worker_id', 'name village');
+    return sendResponse(res, 200, records);
+  } catch (error) {
+    console.error(error);
+    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+  }
+});
+
+// @route   PUT /api/workers/records/:id
+router.put('/records/:id', isAuthenticated, auditLog('UPDATE', 'WorkerRecord'), async (req, res) => {
+    try {
+      const record = await WorkerRecord.findOneAndUpdate(
+        { _id: req.params.id, isDeleted: false },
+        { $set: req.body },
+        { new: true, runValidators: true }
+      );
+      if (!record) return sendError(res, 404, 'NOT_FOUND', 'Record not found');
+      return sendResponse(res, 200, record);
+    } catch (error) {
+      console.error(error);
+      return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    }
+});
+
+// @route   DELETE /api/workers/records/:id
+router.delete('/records/:id', isAuthenticated, auditLog('DELETE', 'WorkerRecord'), async (req, res) => {
+    try {
+      const record = await WorkerRecord.findOneAndUpdate(
+        { _id: req.params.id, isDeleted: false },
+        { isDeleted: true },
+        { new: true }
+      );
+      if (!record) return sendError(res, 404, 'NOT_FOUND', 'Record not found');
+      return sendResponse(res, 200, { message: 'Record deleted successfully' });
+    } catch (error) {
+      console.error(error);
+      return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    }
+});
+
 // @route   GET /api/workers/:id
 router.get('/:id', isAuthenticated, async (req, res) => {
   try {
@@ -118,74 +186,6 @@ router.delete('/:id', isAuthenticated, auditLog('DELETE', 'Worker'), async (req,
       );
       if (!worker) return sendError(res, 404, 'NOT_FOUND', 'Worker not found');
       return sendResponse(res, 200, { message: 'Worker deleted successfully' });
-    } catch (error) {
-      console.error(error);
-      return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
-    }
-});
-
-// --- WORKER RECORDS ---
-
-// @route   POST /api/worker-records
-router.post('/records', isAuthenticated, auditLog('CREATE', 'WorkerRecord'), async (req, res) => {
-    try {
-      const record = new WorkerRecord({
-        ...req.body,
-        createdBy: req.session.userId
-      });
-      await record.save();
-      return sendResponse(res, 201, record);
-    } catch (error) {
-      console.error(error);
-      return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
-    }
-});
-
-// @route   GET /api/worker-records
-router.get('/records/all', isAuthenticated, async (req, res) => {
-  try {
-    const queryObj = { isDeleted: false };
-    if (req.query.worker_id) queryObj.worker_id = req.query.worker_id;
-    if (req.query.work_type) queryObj.work_type = req.query.work_type;
-    if (req.query.status) queryObj.status = req.query.status;
-    if (req.query.fromDate && req.query.toDate) {
-      queryObj.date = { $gte: new Date(req.query.fromDate), $lte: new Date(req.query.toDate) };
-    }
-
-    const records = await WorkerRecord.find(queryObj).sort({ date: -1 }).populate('worker_id', 'name village');
-    return sendResponse(res, 200, records);
-  } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
-  }
-});
-
-// @route   PUT /api/worker-records/:id
-router.put('/records/:id', isAuthenticated, auditLog('UPDATE', 'WorkerRecord'), async (req, res) => {
-    try {
-      const record = await WorkerRecord.findOneAndUpdate(
-        { _id: req.params.id, isDeleted: false },
-        { $set: req.body },
-        { new: true, runValidators: true }
-      );
-      if (!record) return sendError(res, 404, 'NOT_FOUND', 'Record not found');
-      return sendResponse(res, 200, record);
-    } catch (error) {
-      console.error(error);
-      return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
-    }
-});
-
-// @route   DELETE /api/worker-records/:id
-router.delete('/records/:id', isAuthenticated, auditLog('DELETE', 'WorkerRecord'), async (req, res) => {
-    try {
-      const record = await WorkerRecord.findOneAndUpdate(
-        { _id: req.params.id, isDeleted: false },
-        { isDeleted: true },
-        { new: true }
-      );
-      if (!record) return sendError(res, 404, 'NOT_FOUND', 'Record not found');
-      return sendResponse(res, 200, { message: 'Record deleted successfully' });
     } catch (error) {
       console.error(error);
       return sendError(res, 500, 'SERVER_ERROR', 'Server Error');

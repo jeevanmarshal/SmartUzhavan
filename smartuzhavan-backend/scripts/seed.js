@@ -3,7 +3,8 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Farmer = require('../models/Farmer');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const seedData = async () => {
   try {

@@ -106,7 +106,7 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       httpOnly: true, // Prevent XSS access to cookie
-      sameSite: 'lax', // Allow cross-origin top-level navigation
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // ✅ Essential for cross-domain cookies (Vercel to Railway)
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
     proxy: process.env.NODE_ENV === 'production', // Trust proxy headers on Railway

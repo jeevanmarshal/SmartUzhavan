@@ -13,10 +13,10 @@ const seedData = async () => {
     console.log('Connecting to MongoDB for seeding...');
     await mongoose.connect(process.env.MONGODB_URI);
     
-    // 1. Create Default Admin
-    const adminExists = await User.findOne({ username: 'admin' });
-    if (!adminExists) {
-      const admin = new User({
+    // 1. Create/Update Default Admin
+    let admin = await User.findOne({ email: 'admin@smartuzhavan.com' });
+    if (!admin) {
+      admin = new User({
         username: 'admin',
         email: 'admin@smartuzhavan.com',
         password: 'password123',
@@ -25,7 +25,10 @@ const seedData = async () => {
       await admin.save();
       console.log('✅ Default Admin created: admin / password123');
     } else {
-      console.log('ℹ️ Admin user already exists');
+      admin.username = 'admin'; // Ensure username is correct
+      admin.password = 'password123'; // Reset password
+      await admin.save();
+      console.log('✅ Admin account updated and password reset to: password123');
     }
 
     // 2. Create Sample Drivers

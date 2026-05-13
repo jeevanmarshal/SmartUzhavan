@@ -37,8 +37,8 @@ const corsOriginValidator = (origin, callback) => {
   // Check 1: Exact match with allowed origins
   const isExactMatch = allowedOrigins.includes(origin);
 
-  // Check 2: Regex for Vercel preview deployments (smartuzhavan-*.vercel.app)
-  const isVercelPreview = /^https:\/\/smart-uzhavan-[\w-]+\.vercel\.app$/.test(origin);
+  // Check 2: Regex for Vercel domains (matches smart-uzhavan.vercel.app AND smart-uzhavan-*.vercel.app)
+  const isVercelDomain = /^https:\/\/smart-uzhavan(-[\w-]+)?\.vercel\.app$/.test(origin);
 
   // Check 3: Exact match for known localhost ports
   const isLocalhost = [
@@ -49,7 +49,7 @@ const corsOriginValidator = (origin, callback) => {
     'http://127.0.0.1:5173',
   ].includes(origin);
 
-  const isAllowed = isExactMatch || isVercelPreview || isLocalhost;
+  const isAllowed = isExactMatch || isVercelDomain || isLocalhost;
 
   if (isAllowed) {
     console.log('[CORS] ✅ Allowed origin:', origin);

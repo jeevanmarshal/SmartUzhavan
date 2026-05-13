@@ -41,25 +41,31 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl)
+    // Log origin for debugging
+    console.log('Incoming Origin:', origin);
+    
     if (!origin) return callback(null, true);
     
+    // Check if origin is allowed
     const isAllowed = allowedOrigins.includes(origin) || 
-                     origin.endsWith('.vercel.app') || 
-                     origin.includes('localhost');
+                     origin.includes('vercel.app') || 
+                     origin.includes('localhost') ||
+                     origin.includes('127.0.0.1');
                      
     if (isAllowed) {
       callback(null, true);
     } else {
+      console.warn(`CORS blocked for origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'set-cookie']
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight for all routes
 
 // Session middleware
 app.use(session({

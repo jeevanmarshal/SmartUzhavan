@@ -104,7 +104,7 @@ const Login = ({ onLogin }) => {
           {role === 'driver' && (
             <SelectField 
               english="Select Driver" tamil="ஓட்டுநரைத் தேர்ந்தெடுக்கவும்"
-              options={drivers.map(d => ({ value: d._id || d.id, label: d.name }))}
+              options={Array.isArray(drivers) ? drivers.map(d => ({ value: d._id || d.id, label: d.name })) : []}
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               required
@@ -114,7 +114,7 @@ const Login = ({ onLogin }) => {
           {role === 'farmer' && (
             <SelectField 
               english="Select Farmer" tamil="விவசாயியைத் தேர்ந்தெடுக்கவும்"
-              options={farmers.map(f => ({ value: f._id || f.id, label: f.name }))}
+              options={Array.isArray(farmers) ? farmers.map(f => ({ value: f._id || f.id, label: f.name })) : []}
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               required

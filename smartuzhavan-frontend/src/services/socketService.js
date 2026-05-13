@@ -1,6 +1,17 @@
 import { io } from 'socket.io-client';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const getSocketUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace('/api', '');
+  }
+  if (import.meta.env.DEV) {
+    return 'http://localhost:5000';
+  }
+  return 'https://smartuzhavan-production.up.railway.app';
+};
+
+const API_BASE_URL = getSocketUrl();
+console.log('[Socket Service] Connecting to:', API_BASE_URL);
 
 class SocketService {
   constructor() {

@@ -129,6 +129,7 @@ app.use('/api/finance-records', require('./routes/finance'));
 app.use('/api/own-farm-income', require('./routes/own-farm-income'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/pdf', require('./routes/pdf'));
+app.use('/api/rentals', require('./routes/rentals'));
 
 // ============================================
 // HEALTH CHECK

@@ -1,25 +1,135 @@
 import axios from 'axios';
 
-// Ensure we use the VITE_API_URL variable from the .env file
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://smartuzhavan-production.up.railway.app/api';
+// ============================================
+// BACKEND URL CONFIGURATION (IMPROVED - Issue #2 Fixed)
+// ============================================
+
+/**
+ * Intelligently select backend URL based on environment
+ * Priority:
+ * 1. Environment variable (Vercel production)
+ * 2. Development mode (local dev server)
+ * 3. Production fallback
+ */
+const getBackendUrl = () => {
+  // 1. Environment variable from Vercel (has priority)
+  if (import.meta.env.VITE_API_URL) {
+    console.log('[API] Using VITE_API_URL from environment:', import.meta.env.VITE_API_URL);
+    return import.meta.env.VITE_API_URL;
+  }
+
+  // 2. Development environment (local dev server)
+  if (import.meta.env.DEV) {
+    console.log('[API] DEV mode detected, using localhost');
+    return 'http://localhost:5000/api';
+  }
+
+  // 3. Production fallback
+  const fallback = 'https://smartuzhavan-production.up.railway.app/api';
+  console.log('[API] Using production fallback:', fallback);
+  return fallback;
+};
+
+const API_BASE_URL = getBackendUrl();
+console.log('[API Service] Backend URL configured:', API_BASE_URL);
+
+// ============================================
+// AXIOS INSTANCE CONFIGURATION
+// ============================================
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // Important for session cookies
+  timeout: 15000, // 15 second timeout
+  withCredentials: true, // ✅ CRITICAL: Send cookies in cross-origin requests
   headers: {
     'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
 });
+
+// ============================================
+// REQUEST INTERCEPTOR (IMPROVED - Issue #3 Fixed)
+// ============================================
+
+api.interceptors.request.use(
+  (config) => {
+    // Log requests in development mode
+    if (import.meta.env.DEV) {
+      console.log(`[API] ${config.method.toUpperCase()} ${config.url}`, {
+        withCredentials: config.withCredentials,
+        baseURL: config.baseURL,
+      });
+    }
+
+    // Add authorization token if available (for future JWT implementation)
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => {
+    console.error('[API] Request error:', error.message);
+    return Promise.reject(error);
+  }
+);
+
+// ============================================
+// RESPONSE INTERCEPTOR (IMPROVED - Issue #3 Fixed)
+// ============================================
+
+api.interceptors.response.use(
+  (response) => {
+    if (import.meta.env.DEV) {
+      console.log(`[API] ${response.status} Response:`, response.data);
+    }
+    return response;
+  },
+  (error) => {
+    // CORS-specific error detection
+    if (error.code === 'ERR_NETWORK' || error.message.includes('CORS')) {
+      console.error('[API] Network/CORS Error detected:', {
+        url: error.config?.url,
+        origin: window.location.origin,
+        message: error.message,
+      });
+      error.corsError = true;
+    }
+
+    // 401: Unauthorized - clear session and redirect to login
+    if (error.response?.status === 401) {
+      console.warn('[API] 401 Unauthorized - clearing session and redirecting to login');
+      localStorage.removeItem('user');
+      localStorage.removeItem('session');
+      
+      // Only redirect if not already on login page (prevent infinite loop)
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
+
+    // 403: Forbidden
+    if (error.response?.status === 403) {
+      console.error('[API] 403 Forbidden:', error.response.data);
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// ============================================
+// API SERVICE CLASS
+// ============================================
 
 class APIService {
   constructor() {
     this.cache = {};
   }
 
-  // --- Base Methods with Offline Fallback ---
   async request(method, endpoint, data = null, params = null) {
     const cacheKey = `${method}_${endpoint}_${JSON.stringify(params || {})}`;
-    
+
     try {
       const response = await api({
         method,
@@ -28,9 +138,9 @@ class APIService {
         params,
       });
 
-      const responseData = response.data.data; // Extract from standard V5 envelope
+      const responseData = response.data.data || response.data;
 
-      // Cache successful GET requests
+      // Cache GET requests
       if (method === 'GET') {
         this.cache[cacheKey] = responseData;
         localStorage.setItem(`cache_${cacheKey}`, JSON.stringify(responseData));
@@ -38,24 +148,25 @@ class APIService {
 
       return responseData;
     } catch (error) {
-      // Offline / Network Error Fallback
+      // Network error: try to use cached data for GET requests
       if (!error.response) {
         if (method === 'GET') {
-          const cached = this.cache[cacheKey] || JSON.parse(localStorage.getItem(`cache_${cacheKey}`));
+          const cached =
+            this.cache[cacheKey] ||
+            JSON.parse(localStorage.getItem(`cache_${cacheKey}`));
           if (cached) {
-            console.warn(`[OFFLINE] Returning cached data for ${endpoint}`);
+            console.warn('[API] Network error - returning cached data');
             return cached;
           }
         }
         throw new Error('Network error. Please check your connection.');
       }
 
-      // API Errors (e.g., Validation, Not Found, Unauthorized)
-      if (error.response.status === 401) {
-        window.location.href = '/login'; // Redirect to login on unauthorized
-      }
-
-      const errorMessage = error.response.data?.error?.message || error.message;
+      const errorMessage =
+        error.response.data?.error?.message ||
+        error.response.data?.message ||
+        error.message ||
+        'An error occurred';
       throw new Error(errorMessage);
     }
   }
@@ -74,9 +185,7 @@ class APIService {
 
   // --- Driver Salary APIs ---
   getDriverSalaries(driverId) { return this.request('GET', `/drivers/${driverId}/salary-history`); }
-  // Provide a generic way to get all salaries by fetching all drivers and their salaries, or implement a backend route for it.
-  // For now, if driverId is missing, we might need a dedicated route, but let's assume we fetch per driver or add a generic route later.
-  getAllDriverSalaries(params = {}) { return this.request('GET', '/drivers/salary/all', null, params); } // Will need backend update if used
+  getAllDriverSalaries(params = {}) { return this.request('GET', '/drivers/salary/all', null, params); }
   createDriverSalary(driverId, data) { return this.request('POST', `/drivers/${driverId}/salary`, data); }
   updateDriverSalary(salaryId, data) { return this.request('PUT', `/drivers/salary/${salaryId}`, data); }
   deleteDriverSalary(salaryId) { return this.request('DELETE', `/drivers/salary/${salaryId}`); }
@@ -119,8 +228,8 @@ class APIService {
 
   // --- Finance APIs ---
   getFinanceRecords(params = {}) { return this.request('GET', '/finance-records', null, params); }
-  createFinanceRecord(data) { return this.request('POST', '/finance-records', data); }
-  updateFinanceRecord(id, data) { return this.request('PUT', `/finance-records/${id}`, data); }
+  createFinanceRecord(recordData) { return this.request('POST', '/finance-records', recordData); }
+  updateFinanceRecord(id, recordData) { return this.request('PUT', `/finance-records/${id}`, recordData); }
   deleteFinanceRecord(id) { return this.request('DELETE', `/finance-records/${id}`); }
   addFinancePayment(id, data) { return this.request('POST', `/finance-records/${id}/payment`, data); }
 
@@ -136,6 +245,18 @@ class APIService {
   updateSettings(data) { return this.request('PUT', '/settings', data); }
   getPricingConfig() { return this.request('GET', '/settings/prices'); }
   updatePricingConfig(data) { return this.request('PUT', '/settings/prices', data); }
+
+  // --- Search APIs ---
+  searchDrivers(query) { return this.request('GET', '/search/drivers', null, { q: query }); }
+  searchFarmers(query) { return this.request('GET', '/search/farmers', null, { q: query }); }
+
+  // --- Utility ---
+  clearCache() {
+    this.cache = {};
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('cache_'))
+      .forEach((key) => localStorage.removeItem(key));
+  }
 }
 
 export const apiService = new APIService();

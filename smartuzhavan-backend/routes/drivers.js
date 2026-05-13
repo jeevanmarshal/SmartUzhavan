@@ -317,4 +317,44 @@ router.get('/:id/pdf/salary', isAuthenticated, async (req, res) => {
   }
 });
 
+// @route   POST /api/drivers/login
+// @desc    Authenticate driver
+// @access  Public
+router.post('/login', [
+  body('phone').trim().notEmpty().withMessage('Phone is required'),
+  body('pin').notEmpty().withMessage('PIN is required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return sendError(res, 400, 'VALIDATION_ERROR', 'Invalid inputs', errors.array());
+
+  try {
+    const { phone, pin } = req.body;
+    const driver = await Driver.findOne({ phone, isDeleted: false });
+    
+    if (!driver || !(await driver.verifyPIN(pin))) {
+      logger.warn(`Failed driver login attempt for phone: ${phone}`);
+      return sendError(res, 401, 'UNAUTHORIZED', 'தவறான விவரங்கள் (Invalid Credentials)');
+    }
+
+    if (!driver.active) {
+      return sendError(res, 403, 'FORBIDDEN', 'Account is deactivated');
+    }
+
+    // Set session (same as user login)
+    req.session.userId = driver._id;
+    req.session.role = 'driver';
+
+    logger.info(`Driver logged in: ${driver.name} (${phone})`);
+    
+    return sendResponse(res, 200, {
+      id: driver._id,
+      name: driver.name,
+      role: 'driver'
+    });
+  } catch (error) {
+    logger.error(`Driver login error: ${error.message}`);
+    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+  }
+});
+
 module.exports = router;

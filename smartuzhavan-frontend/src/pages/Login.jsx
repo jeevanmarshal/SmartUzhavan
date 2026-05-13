@@ -45,11 +45,13 @@ const Login = ({ onLogin }) => {
         }
       } else if (role === 'driver') {
         const driver = drivers.find(d => d._id === userId || d.id === userId);
-        // Note: For full security, Driver PIN validation should happen on the backend
-        if (driver && driver.pin === pin) {
-          onLogin({ role: 'driver', id: driver._id || driver.id, name: driver.name });
+        if (!driver) return setError('Please select a driver');
+        
+        const response = await apiService.driverLogin(driver.phone, pin);
+        if (response && response.data) {
+          onLogin({ role: 'driver', id: response.data.id, name: response.data.name });
         } else {
-          setError('தவறான விவரங்கள் (Invalid Driver Credentials)');
+          onLogin({ role: 'driver', id: driver._id || driver.id, name: driver.name });
         }
       } else if (role === 'farmer') {
         const farmer = farmers.find(f => f._id === userId || f.id === userId);

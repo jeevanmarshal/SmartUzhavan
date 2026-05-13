@@ -172,7 +172,14 @@ class APIService {
   }
 
   // --- Auth APIs ---
-  login(username, password) { return this.request('POST', '/auth/login', { username, password }); }
+  login(username, password) {
+    return this.request('POST', '/auth/login', { username, password });
+  }
+
+  driverLogin(phone, pin) {
+    return this.request('POST', '/drivers/login', { phone, pin });
+  }
+
   logout() { return this.request('POST', '/auth/logout'); }
   getProfile() { return this.request('GET', '/auth/me'); }
 

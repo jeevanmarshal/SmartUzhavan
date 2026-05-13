@@ -1,21 +1,46 @@
 const AuditLog = require('../models/AuditLog');
+const logger = require('../utils/logger');
 
-const auditMiddleware = async (req, res, next) => {
-  if (!req.user || !['POST', 'PUT', 'DELETE'].includes(req.method)) {
-    return next();
-  }
-  
-  // Capture response to log it
-  const originalJson = res.json;
-  res.json = function(data) {
-    if (data.success && ['POST', 'PUT', 'DELETE'].includes(req.method)) {
-      // Log is currently created in route handlers, but this middleware 
-      // can be used to extend generic audit functionality in the future.
+/**
+ * Audit Middleware Factory
+ * @param {string} action - Action type (CREATE, UPDATE, DELETE)
+ * @param {string} entity - Entity name (Driver, Farmer, etc.)
+ */
+const auditLog = (action, entity) => {
+  return async (req, res, next) => {
+    // We don't log GET requests or unauthenticated requests
+    if (!req.user || req.method === 'GET') {
+      return next();
     }
-    return originalJson.call(this, data);
+
+    // Wrap res.json to capture successful operations
+    const originalJson = res.json;
+    res.json = function(data) {
+      if (data.success) {
+        // Create audit log entry asynchronously
+        const logEntry = new AuditLog({
+          userId: req.user._id,
+          action,
+          entity,
+          entityId: req.params.id || data.data?._id || data.data?.id,
+          details: {
+            method: req.method,
+            path: req.originalUrl,
+            body: action === 'DELETE' ? null : req.body
+          },
+          ip: req.ip,
+          userAgent: req.get('User-Agent')
+        });
+
+        logEntry.save().catch(err => {
+          logger.error(`Audit logging failed: ${err.message}`);
+        });
+      }
+      return originalJson.call(this, data);
+    };
+
+    next();
   };
-  
-  next();
 };
 
-module.exports = auditMiddleware;
+module.exports = auditLog;

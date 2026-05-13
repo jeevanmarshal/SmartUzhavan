@@ -47,8 +47,8 @@ app.use(session({
 }));
 
 // Routes
-const auditMiddleware = require('./middleware/audit');
-app.use('/api/', auditMiddleware);
+// Route-specific audit logging handled in individual routes
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/farmers', require('./routes/farmers'));
 app.use('/api/reports', require('./routes/reports'));

@@ -1,21 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { getConfig, saveData } from '../services/storage';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
 import { initialPricingConfig } from '../data/initialData';
 import InputField from '../components/common/InputField';
 import Button from '../components/common/Button';
 
 const PricingConfig = () => {
+  const { execute: fetchPricing } = useAPI(apiService.getPricingConfig.bind(apiService));
   const [config, setConfig] = useState(initialPricingConfig);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  const refreshData = async () => {
+    try {
+      const savedConfig = await fetchPricing();
+      if (savedConfig && Object.keys(savedConfig).length > 0) {
+        setConfig(savedConfig);
+      }
+    } catch (err) {
+      console.warn('Could not fetch pricing config, using default', err);
+    }
+  };
 
   useEffect(() => {
-    const savedConfig = getConfig('rl_pricing_config');
-    if (Object.keys(savedConfig).length > 0) {
-      setConfig(savedConfig);
-    } else {
-      // First time launch - save initial data
-      saveData('rl_pricing_config', initialPricingConfig);
-    }
+    refreshData();
   }, []);
 
   const handleChange = (category, field, value) => {
@@ -28,15 +36,21 @@ const PricingConfig = () => {
     }));
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const updatedConfig = {
       ...config,
       lastUpdated: new Date().toISOString().split('T')[0]
     };
-    saveData('rl_pricing_config', updatedConfig);
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+    
+    try {
+      await apiService.updatePricingConfig(updatedConfig);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to update pricing configuration');
+      setTimeout(() => setError(''), 5000);
+    }
   };
 
   return (
@@ -48,6 +62,7 @@ const PricingConfig = () => {
           வெற்றிகரமாக சேமிக்கப்பட்டது (Successfully Saved)
         </div>
       )}
+      {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
       <form onSubmit={handleSave}>
         <div className="card">

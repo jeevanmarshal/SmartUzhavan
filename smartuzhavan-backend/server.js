@@ -53,6 +53,14 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/farmers', require('./routes/farmers'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/search', require('./routes/search'));
+app.use('/api/drivers', require('./routes/drivers'));
+app.use('/api/workers', require('./routes/workers'));
+app.use('/api/expenses', require('./routes/expenses'));
+app.use('/api/harvester-jobs', require('./routes/harvester'));
+app.use('/api/finance-records', require('./routes/finance'));
+app.use('/api/own-farm-income', require('./routes/own-farm-income'));
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/pdf', require('./routes/pdf'));
 
 // Health check
 app.get('/health', (req, res) => {

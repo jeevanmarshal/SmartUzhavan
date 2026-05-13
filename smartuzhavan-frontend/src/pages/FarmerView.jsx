@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getData } from '../services/storage';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
 import { formatCurrency } from '../utils/formatters';
 import { getPaymentStatus } from '../services/calculations';
 import Badge from '../components/common/Badge';
@@ -7,20 +8,43 @@ import Button from '../components/common/Button';
 import { generateHarvesterPDF, generateRentalPDF, generateStatementPDF } from '../services/pdfService';
 
 const FarmerView = ({ userId }) => {
+  const { execute: fetchFarmers } = useAPI(apiService.getFarmers.bind(apiService));
+  const { execute: fetchJobs } = useAPI(apiService.getHarvesterJobs.bind(apiService));
+  const { execute: fetchRentals } = useAPI(apiService.getRentals.bind(apiService));
+
   const [jobs, setJobs] = useState([]);
   const [rentals, setRentals] = useState([]);
   const [farmer, setFarmer] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const allFarmers = getData('rl_farmers');
-    setFarmer(allFarmers.find(f => f.id === userId));
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [farmersData, jobsData, rentalsData] = await Promise.all([
+          fetchFarmers(),
+          fetchJobs(),
+          fetchRentals()
+        ]);
 
-    const allJobs = getData('rl_harvester_jobs');
-    setJobs(allJobs.filter(j => j.farmerId === userId && j.status !== 'cancelled'));
+        const allFarmers = farmersData?.data || farmersData || [];
+        setFarmer(allFarmers.find(f => f._id === userId || f.id === userId));
 
-    const allRentals = getData('rl_rentals');
-    setRentals(allRentals.filter(r => r.farmerId === userId));
+        const allJobs = jobsData?.data || jobsData || [];
+        setJobs(allJobs.filter(j => (j.farmer_id?._id || j.farmerId) === userId && j.status !== 'cancelled'));
+
+        const allRentals = rentalsData?.data || rentalsData || [];
+        setRentals(allRentals.filter(r => (r.farmer_id?._id || r.farmerId) === userId));
+      } catch (err) {
+        console.error('Failed to load farmer data', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (userId) {
+      loadData();
+    }
   }, [userId]);
 
   const stats = useMemo(() => {
@@ -29,7 +53,7 @@ const FarmerView = ({ userId }) => {
     
     // Logic for "Current Season Paid"
     // We'll define current season as the latest year found in the jobs
-    const latestYear = Math.max(...jobs.map(j => j.seasonYear), new Date().getFullYear());
+    const latestYear = jobs.length > 0 ? Math.max(...jobs.map(j => j.seasonYear || new Date().getFullYear())) : new Date().getFullYear();
     const currentSeasonPaid = jobs
         .filter(j => j.seasonYear === latestYear)
         .reduce((s, j) => s + (j.payments || []).reduce((pSum, p) => pSum + p.amount, 0), 0);
@@ -44,14 +68,18 @@ const FarmerView = ({ userId }) => {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  if (loading) {
+    return <div className="app-container"><div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div></div>;
+  }
+
   return (
     <div className="app-container">
       {/* Module 1: Refined Dashboard */}
       <div className="card" style={{ background: 'linear-gradient(135deg, #1B3A6B 0%, #2D3748 100%)', color: 'white', marginBottom: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-                <h2 style={{ margin: 0 }}>{farmer?.name}</h2>
-                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>Farmer ID: {farmer?.id}</div>
+                <h2 style={{ margin: 0 }}>{farmer?.name || 'Farmer'}</h2>
+                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>Farmer ID: {farmer?._id || farmer?.id}</div>
                 <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>{farmer?.village} | {farmer?.phone}</div>
             </div>
             <Button onClick={() => generateStatementPDF(farmer, jobs, rentals)} variant="secondary" style={{ fontSize: '0.75rem' }}>Statement PDF</Button>
@@ -74,7 +102,7 @@ const FarmerView = ({ userId }) => {
         <h3>அறுவடை மற்றும் வாடகை விவரங்கள் (Bills & History)</h3>
         {[...jobs, ...rentals].sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)).map(item => {
           const isJob = !!item.billId;
-          const itemId = item.id;
+          const itemId = item._id || item.id;
           const isExpanded = expandedId === itemId;
           const paid = (item.payments || []).reduce((s, p) => s + p.amount, 0);
           const total = item.finalAmount || item.totalAmount;
@@ -85,7 +113,7 @@ const FarmerView = ({ userId }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{item.billId || item.machineType}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#718096' }}>{item.date || `${item.season} ${item.seasonYear}`}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#718096' }}>{item.date ? new Date(item.date).toLocaleDateString() : `${item.season} ${item.seasonYear}`}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
                     <Badge status={status} />
@@ -116,7 +144,7 @@ const FarmerView = ({ userId }) => {
                             {item.payments.map((p, idx) => (
                                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', background: '#F7FAFC', padding: '8px', borderRadius: '4px' }}>
                                     <div>
-                                        <div style={{ fontWeight: 'bold' }}>{p.date}</div>
+                                        <div style={{ fontWeight: 'bold' }}>{p.date ? new Date(p.date).toLocaleDateString() : ''}</div>
                                         <div style={{ fontSize: '0.75rem', color: '#718096' }}>{p.mode} {p.description ? `- ${p.description}` : ''}</div>
                                     </div>
                                     <div style={{ fontWeight: 'bold', color: '#38A169' }}>+{formatCurrency(p.amount)}</div>
@@ -129,6 +157,7 @@ const FarmerView = ({ userId }) => {
             </div>
           );
         })}
+        {([...jobs, ...rentals].length === 0) && <p style={{textAlign:'center', color:'#718096'}}>No bills found.</p>}
       </div>
     </div>
   );

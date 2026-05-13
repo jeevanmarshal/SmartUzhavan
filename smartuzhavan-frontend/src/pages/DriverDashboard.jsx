@@ -1,28 +1,42 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getData } from '../services/storage';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
 import { formatCurrency } from '../utils/formatters';
 import SelectField from '../components/common/SelectField';
 import InputField from '../components/common/InputField';
 
 const DriverDashboard = ({ userId }) => {
-  const [logs, setLogs] = useState([]);
-  const [salaries, setSalaries] = useState([]);
+  const { execute: fetchDriver } = useAPI(() => apiService.getDriver(userId));
+  const { execute: fetchSalaries } = useAPI(() => apiService.getDriverSalaries(userId));
+
+  const [logsAndSalaries, setLogsAndSalaries] = useState([]);
   const [driver, setDriver] = useState(null);
   const [filterMode, setFilterMode] = useState('month');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedSeason, setSelectedSeason] = useState('KUR');
   const [seasonYear, setSeasonYear] = useState(new Date().getFullYear());
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const allDrivers = getData('rl_drivers');
-    setDriver(allDrivers.find(d => d.id === userId));
-
-    const allLogs = getData('rl_driver_logs');
-    setLogs(allLogs.filter(l => l.driverId === userId));
-
-    const allSalaries = getData('rl_driver_salary');
-    setSalaries(allSalaries.filter(s => s.driverId === userId));
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [driverData, logsData] = await Promise.all([
+          fetchDriver(),
+          fetchSalaries()
+        ]);
+        setDriver(driverData?.data || driverData);
+        setLogsAndSalaries(logsData?.data || logsData || []);
+      } catch (err) {
+        console.error('Failed to load driver dashboard data', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (userId) {
+      loadData();
+    }
   }, [userId]);
 
   const stats = useMemo(() => {
@@ -49,18 +63,21 @@ const DriverDashboard = ({ userId }) => {
       }
     });
 
-    const filteredLogs = filterData(logs);
-    const filteredSalaries = filterData(salaries);
+    const filteredData = filterData(logsAndSalaries);
 
-    const totalHours = filteredLogs.reduce((sum, l) => sum + (l.totalHours || 0), 0);
-    const uniqueDays = new Set(filteredLogs.map(l => l.date)).size;
+    const totalHours = filteredData.reduce((sum, l) => sum + (l.totalDuration || l.totalHours || 0), 0);
+    const uniqueDays = new Set(filteredData.map(l => new Date(l.date).toDateString())).size;
 
-    const earned = filteredSalaries.reduce((sum, s) => sum + (s.netPay || 0), 0);
-    const bonus = filteredSalaries.reduce((sum, s) => sum + (parseFloat(s.bonus) || 0), 0);
-    const extra = filteredSalaries.reduce((sum, s) => sum + (parseFloat(s.extraAmount) || 0), 0);
-    const advance = filteredSalaries.reduce((sum, s) => sum + (parseFloat(s.advance) || 0), 0);
+    const earned = filteredData.reduce((sum, s) => {
+        // Fallback to baseSalary if netPay is undefined
+        const net = s.netPay !== undefined ? s.netPay : ((s.baseSalary || 0) + (s.bonus || 0) + (s.extraAmount || 0) - (s.advance || 0));
+        return sum + net;
+    }, 0);
+    const bonus = filteredData.reduce((sum, s) => sum + (parseFloat(s.bonus) || 0), 0);
+    const extra = filteredData.reduce((sum, s) => sum + (parseFloat(s.extraAmount) || 0), 0);
+    const advance = filteredData.reduce((sum, s) => sum + (parseFloat(s.advance) || 0), 0);
     
-    const received = filteredSalaries.reduce((sum, s) => {
+    const received = filteredData.reduce((sum, s) => {
         const paid = (s.payments || []).reduce((pSum, p) => pSum + p.amount, 0);
         return sum + paid;
     }, 0);
@@ -75,12 +92,16 @@ const DriverDashboard = ({ userId }) => {
       totalExtra: extra,
       due: earned - received
     };
-  }, [logs, salaries, filterMode, selectedMonth, selectedYear, selectedSeason, seasonYear]);
+  }, [logsAndSalaries, filterMode, selectedMonth, selectedYear, selectedSeason, seasonYear]);
+
+  if (loading) {
+    return <div className="app-container"><div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div></div>;
+  }
 
   return (
     <div className="app-container">
       <div className="card" style={{ background: 'linear-gradient(135deg, #1B3A6B 0%, #2D3748 100%)', color: 'white', marginBottom: '20px' }}>
-        <h2 style={{ margin: 0 }}>வணக்கம், {driver?.name}</h2>
+        <h2 style={{ margin: 0 }}>வணக்கம், {driver?.name || 'Driver'}</h2>
         <p style={{ opacity: 0.8, fontSize: '0.9rem' }}>ஓட்டுநர் மேலாண்மை பலகை (Driver Dashboard)</p>
         
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>

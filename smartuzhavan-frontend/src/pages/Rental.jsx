@@ -1,43 +1,73 @@
 import React, { useState, useEffect } from 'react';
-import { getData, getConfig, addRecord, addPayment } from '../services/storage';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
+import useRealTime from '../hooks/useRealTime';
 import { rentalTypes } from '../data/machineTypes';
-import { generateId } from '../utils/idGenerator';
-import { sumPayments, getPaymentStatus } from '../services/calculations';
+import { getPaymentStatus } from '../services/calculations';
 import { formatCurrency } from '../utils/formatters';
 import SelectField from '../components/common/SelectField';
 import InputField from '../components/common/InputField';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import PaymentHistory from '../components/common/PaymentHistory';
-import { generateRentalPDF } from '../services/pdfService';
+import { generateRentalPDF as pdfGenerateRental } from '../services/pdfService';
 
 const Rental = () => {
+  const { data: farmersData } = useRealTime('Farmer', []);
+  const { data: rentalsData, syncData: setRentals } = useRealTime('Rental', []);
+
+  const { execute: fetchFarmers } = useAPI(apiService.getFarmers.bind(apiService));
+  const { execute: fetchSettings } = useAPI(() => apiService.request('GET', '/settings'));
+  const { execute: fetchRentals } = useAPI(apiService.getRentals.bind(apiService));
+
   const [farmers, setFarmers] = useState([]);
   const [pricing, setPricing] = useState(null);
-  const [rentals, setRentals] = useState([]);
+  const [rentals, setLocalRentals] = useState([]);
+  
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeRentalId, setActiveRentalId] = useState(null);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    farmerId: '',
+    farmer_id: '',
     machineType: '',
     quantity: 1,
     ratePerUnit: 0,
     unit: ''
   });
 
+  const refreshData = async () => {
+    try {
+      const [fData, sData, rData] = await Promise.all([
+        fetchFarmers(), fetchSettings(), fetchRentals()
+      ]);
+      setFarmers(fData?.data || fData || []);
+      setPricing(sData?.data?.pricing || null);
+      
+      const rArray = rData?.data || rData || [];
+      setLocalRentals(rArray);
+      setRentals(rArray);
+    } catch (err) {
+      console.error('Data sync failed:', err);
+    }
+  };
+
   useEffect(() => {
-    setFarmers(getData('rl_farmers'));
-    setPricing(getConfig('rl_pricing_config'));
-    setRentals(getData('rl_rentals'));
+    refreshData();
   }, []);
+
+  useEffect(() => {
+    if (farmersData.length > 0) setFarmers(farmersData);
+    if (rentalsData.length > 0) setLocalRentals(rentalsData);
+  }, [farmersData, rentalsData]);
 
   const handleMachineChange = (type) => {
     const machine = rentalTypes.find(m => m.value === type);
     let rate = 0;
     if (pricing && type !== 'water') {
-      rate = pricing.rental[type] || 0;
+      rate = pricing.rental?.[type] || 0;
     }
     
     setFormData({
@@ -48,32 +78,56 @@ const Rental = () => {
     });
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const newRental = {
       ...formData,
-      id: generateId('rl_rentals'),
       totalAmount: formData.quantity * formData.ratePerUnit,
       payments: [],
       status: 'active'
     };
 
-    addRecord('rl_rentals', newRental);
-    setRentals(getData('rl_rentals'));
-    setShowAddForm(false);
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      farmerId: '',
-      machineType: '',
-      quantity: 1,
-      ratePerUnit: 0,
-      unit: ''
-    });
+    try {
+      await apiService.createRental(newRental);
+      await refreshData();
+      
+      setSuccess(true);
+      setShowAddForm(false);
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        farmer_id: '',
+        machineType: '',
+        quantity: 1,
+        ratePerUnit: 0,
+        unit: ''
+      });
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to create rental record');
+      setTimeout(() => setError(''), 5000);
+    }
   };
 
-  const handleAddPayment = (rentalId, payment) => {
-    addPayment('rl_rentals', rentalId, payment);
-    setRentals(getData('rl_rentals'));
+  const handleAddPayment = async (rentalId, payment) => {
+    try {
+      const rental = rentals.find(r => r._id === rentalId);
+      if (!rental) return;
+      const updatedPayments = [...(rental.payments || []), payment];
+      await apiService.updateRental(rentalId, { payments: updatedPayments });
+      await refreshData();
+    } catch (err) {
+      alert('Failed to add payment: ' + err.message);
+    }
+  };
+
+  const generateRentalPDF = async (rental) => {
+    try {
+      const farmerId = rental.farmer_id?._id || rental.farmer_id || rental.farmerId;
+      const farmer = farmers.find(f => f._id === farmerId);
+      await pdfGenerateRental(rental, farmer);
+    } catch (err) {
+      alert('Error generating PDF: ' + err.message);
+    }
   };
 
   return (
@@ -82,6 +136,9 @@ const Rental = () => {
         <h1>இயந்திர வாடகை (Machinery Rental)</h1>
         {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ New Entry</Button>}
       </div>
+
+      {success && <div className="success-message">வெற்றிகரமாக சேமிக்கப்பட்டது (Successfully Saved)</div>}
+      {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
       {showAddForm && (
         <form onSubmit={handleSave} className="card">
@@ -94,9 +151,9 @@ const Rental = () => {
           />
           <SelectField 
             english="Farmer" tamil="விவசாயி" 
-            options={farmers.map(f => ({ value: f.id, label: `${f.name} (${f.village})` }))}
-            value={formData.farmerId}
-            onChange={(e) => setFormData({...formData, farmerId: e.target.value})}
+            options={farmers.map(f => ({ value: f._id, label: `${f.name} (${f.village})` }))}
+            value={formData.farmer_id}
+            onChange={(e) => setFormData({...formData, farmer_id: e.target.value})}
             required
           />
           <SelectField 
@@ -126,30 +183,33 @@ const Rental = () => {
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <Button type="submit" fullWidth>Save (சேமி)</Button>
-            <Button onClick={() => setShowAddForm(false)} variant="danger" fullWidth>Cancel (ரத்து)</Button>
+            <Button type="button" onClick={() => setShowAddForm(false)} variant="danger" fullWidth>Cancel (ரத்து)</Button>
           </div>
         </form>
       )}
 
       <div className="list-container">
         {rentals.map(rental => {
-          const farmer = farmers.find(f => f.id === rental.farmerId);
+          const farmerId = rental.farmer_id?._id || rental.farmer_id || rental.farmerId;
+          const farmer = farmers.find(f => f._id === farmerId);
+          const farmerName = rental.farmer_id?.name || farmer?.name || 'Unknown';
           const machine = rentalTypes.find(m => m.value === rental.machineType);
-          const isExpanded = activeRentalId === rental.id;
+          const isExpanded = activeRentalId === rental._id;
           const status = getPaymentStatus(rental.totalAmount, rental.payments);
 
           return (
-            <div key={rental.id} className="card" onClick={() => setActiveRentalId(isExpanded ? null : rental.id)} style={{ cursor: 'pointer' }}>
+            <div key={rental._id} className="card" onClick={() => setActiveRentalId(isExpanded ? null : rental._id)} style={{ cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{farmer?.name || 'Unknown'}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#718096' }}>{rental.date} | {machine?.ta || rental.machineType}</div>
+                  <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{farmerName}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#718096' }}>{new Date(rental.date).toLocaleDateString()} | {machine?.ta || rental.machineType}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
                   <Badge status={status} />
                   <button 
-                    onClick={(e) => { e.stopPropagation(); generateRentalPDF(rental, farmer); }}
+                    onClick={(e) => { e.stopPropagation(); generateRentalPDF(rental); }}
                     style={{ fontSize: '0.75rem', color: '#1B3A6B', border: '1px solid #1B3A6B', borderRadius: '4px', padding: '2px 8px', background: 'white', cursor: 'pointer' }}
+                    title="PDF Generation pending API integration"
                   >
                     PDF
                   </button>
@@ -163,15 +223,16 @@ const Rental = () => {
               {isExpanded && (
                 <div onClick={(e) => e.stopPropagation()}>
                   <PaymentHistory 
-                    payments={rental.payments} 
+                    payments={rental.payments || []} 
                     totalAmount={rental.totalAmount} 
-                    onAddPayment={(payment) => handleAddPayment(rental.id, payment)}
+                    onAddPayment={(payment) => handleAddPayment(rental._id, payment)}
                   />
                 </div>
               )}
             </div>
           );
         })}
+        {rentals.length === 0 && <p style={{textAlign: 'center', color: '#718096'}}>No rentals found.</p>}
       </div>
     </div>
   );

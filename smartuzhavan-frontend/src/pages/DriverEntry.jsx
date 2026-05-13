@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getData, getConfig, addRecord, updateRecord, deleteRecord } from '../services/storage';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
+import useRealTime from '../hooks/useRealTime';
 import { machineTypes } from '../data/machineTypes';
 import SelectField from '../components/common/SelectField';
 import InputField from '../components/common/InputField';
@@ -8,16 +10,28 @@ import SessionEntry from '../components/driver/SessionEntry';
 import DieselInput from '../components/driver/DieselInput';
 import { getHours, getDieselCost } from '../services/calculations';
 import { getDuration } from '../utils/timeUtils';
-import { generateId } from '../utils/idGenerator';
 import { generateLogBillId } from '../services/billId';
 
 const DriverEntry = ({ userId }) => {
+  const { data: farmersData } = useRealTime('Farmer', []);
+  const { data: driversData } = useRealTime('Driver', []);
+  const { data: allLogsData, syncData: setAllLogs } = useRealTime('DriverSalary', []);
+  const { data: jobsData } = useRealTime('HarvesterJob', []);
+
+  const { execute: fetchFarmers } = useAPI(apiService.getFarmers.bind(apiService));
+  const { execute: fetchDrivers } = useAPI(apiService.getDrivers.bind(apiService));
+  const { execute: fetchLogs } = useAPI(apiService.getAllDriverSalaries.bind(apiService));
+  const { execute: fetchJobs } = useAPI(apiService.getHarvesterJobs.bind(apiService));
+  const { execute: fetchSettings } = useAPI(() => apiService.request('GET', '/settings'));
+
   const [farmers, setFarmers] = useState([]);
-  const [allLogs, setAllLogs] = useState([]);
+  const [allLogs, setLogs] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [dieselPrice, setDieselPrice] = useState(0);
+
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [dieselPrice, setDieselPrice] = useState(0);
   
   const [editingLog, setEditingLog] = useState(null);
   const [confirmMsg, setConfirmMsg] = useState('');
@@ -30,7 +44,7 @@ const DriverEntry = ({ userId }) => {
   const [filterMachine, setFilterMachine] = useState('all');
   
   const [formData, setFormData] = useState({
-    driverId: userId || '',
+    driver_id: userId || '',
     machineType: 'harvester_tyre',
     farmerId: '',
     date: new Date().toISOString().split('T')[0],
@@ -38,28 +52,46 @@ const DriverEntry = ({ userId }) => {
     diesel: { mode: 'none', value: 0, pricePerLitre: 0, total: 0 }
   });
 
-  const refreshLogs = () => {
-    setAllLogs(getData('rl_driver_logs'));
+  const refreshData = async () => {
+    try {
+      const [fData, dData, lData, jData, sData] = await Promise.all([
+        fetchFarmers(), fetchDrivers(), fetchLogs(), fetchJobs(), fetchSettings()
+      ]);
+      setFarmers(fData?.data || fData || []);
+      setDrivers(dData?.data || dData || []);
+      
+      const logsArray = lData?.data || lData || [];
+      setLogs(logsArray);
+      setAllLogs(logsArray);
+      
+      setJobs(jData?.data || jData || []);
+
+      const price = sData?.data?.pricing?.diesel?.pricePerLitre || 80;
+      setDieselPrice(price);
+      
+      if (!editingLog) {
+        setFormData(prev => ({
+          ...prev,
+          driver_id: userId || prev.driver_id,
+          diesel: { ...prev.diesel, pricePerLitre: price }
+        }));
+      }
+    } catch (err) {
+      console.error('Data sync failed:', err);
+    }
   };
 
   useEffect(() => {
-    const savedFarmers = getData('rl_farmers');
-    setFarmers(savedFarmers.map(f => ({ value: f.id, label: `${f.name} (${f.village})` })));
-    setDrivers(getData('rl_drivers'));
-    
-    const config = getConfig('rl_pricing_config');
-    const price = config?.diesel?.pricePerLitre || 0;
-    setDieselPrice(price);
-    
-    if (!editingLog) {
-      setFormData(prev => ({
-        ...prev,
-        driverId: userId || prev.driverId,
-        diesel: { ...prev.diesel, pricePerLitre: price }
-      }));
-    }
-    refreshLogs();
-  }, [userId, editingLog]);
+    refreshData();
+  }, [userId]);
+
+  // Keep local state in sync with real-time state
+  useEffect(() => {
+    if (farmersData.length > 0) setFarmers(farmersData);
+    if (driversData.length > 0) setDrivers(driversData);
+    if (allLogsData.length > 0) setLogs(allLogsData);
+    if (jobsData.length > 0) setJobs(jobsData);
+  }, [farmersData, driversData, allLogsData, jobsData]);
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -103,68 +135,72 @@ const DriverEntry = ({ userId }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.driverId) {
+    if (!formData.driver_id) {
       setError('Please select a driver (ஓட்டுநரை தேர்ந்தெடுக்கவும்)');
       return;
     }
     
     const newLog = {
       ...formData,
-      totalHours,
+      totalDuration: totalHours,
       source: 'driver_log',
-      status: 'active'
+      status: 'submitted'
     };
 
-    if (editingLog) {
-      newLog.id = editingLog.id;
-      newLog.billId = editingLog.billId;
-      updateRecord('rl_driver_logs', editingLog.id, newLog);
-      
-      // Cascade to Harvester Jobs
-      const linkedJob = getData('rl_harvester_jobs').find(j => j.linkedLogIds && j.linkedLogIds.includes(editingLog.id));
-      if (linkedJob) {
-        const allLinkedLogs = getData('rl_driver_logs').filter(l => linkedJob.linkedLogIds.includes(l.id));
-        const newTotalHours = allLinkedLogs.reduce((sum,l)=>sum+l.totalHours,0);
-        const newGross = newTotalHours * linkedJob.ratePerHour;
-        const newFinal = Math.max(0, newGross - linkedJob.discount);
-        const newDieselFromLogs = allLinkedLogs.reduce((sum,l)=>sum+(l.diesel?.total||0),0);
-        updateRecord('rl_harvester_jobs', linkedJob.id, {
-          totalHours: newTotalHours,
-          grossAmount: newGross,
-          finalAmount: newFinal,
-          dieselFromLogs: newDieselFromLogs,
-        });
+    try {
+      if (editingLog) {
+        await apiService.updateDriverSalary(editingLog._id, newLog);
+        
+        // Cascade to Harvester Jobs
+        const linkedJob = jobs.find(j => j.linkedLogIds && j.linkedLogIds.includes(editingLog._id));
+        if (linkedJob) {
+          const allLinkedLogs = allLogs.filter(l => linkedJob.linkedLogIds.includes(l._id));
+          // Substitute the edited log's new value in calculation since state hasn't updated yet
+          const newTotalHours = allLinkedLogs.reduce((sum, l) => sum + (l._id === editingLog._id ? totalHours : l.totalDuration), 0);
+          const newGross = newTotalHours * linkedJob.ratePerHour;
+          const newFinal = Math.max(0, newGross - linkedJob.discount);
+          const newDieselFromLogs = allLinkedLogs.reduce((sum, l) => sum + (l._id === editingLog._id ? (newLog.diesel?.total||0) : (l.diesel?.total||0)), 0);
+          
+          await apiService.updateHarvesterJob(linkedJob._id, {
+            totalHours: newTotalHours,
+            grossAmount: newGross,
+            finalAmount: newFinal,
+            dieselFromLogs: newDieselFromLogs,
+          });
+        }
+        setEditingLog(null);
+      } else {
+        newLog.billId = generateLogBillId(new Date(formData.date).getFullYear(), allLogs);
+        await apiService.createDriverSalary(newLog.driver_id, newLog);
       }
-      setEditingLog(null);
-    } else {
-      newLog.id = generateId('rl_driver_logs');
-      newLog.billId = generateLogBillId(new Date(formData.date).getFullYear());
-      addRecord('rl_driver_logs', newLog);
+
+      await refreshData();
+      setSuccess(true);
+      setFormData({
+        driver_id: userId || '',
+        machineType: 'harvester_tyre',
+        farmerId: '',
+        date: new Date().toISOString().split('T')[0],
+        sessions: [{ start: '', end: '', durationHours: 0 }],
+        diesel: { mode: 'none', value: 0, pricePerLitre: dieselPrice, total: 0 }
+      });
+
+      setTimeout(() => { setSuccess(false); setError(''); }, 3000);
+    } catch (err) {
+      setError(err.message || 'Error saving log');
+      setTimeout(() => setError(''), 5000);
     }
-
-    refreshLogs();
-    setSuccess(true);
-    setFormData({
-      driverId: userId || '',
-      machineType: 'harvester_tyre',
-      farmerId: '',
-      date: new Date().toISOString().split('T')[0],
-      sessions: [{ start: '', end: '', durationHours: 0 }],
-      diesel: { mode: 'none', value: 0, pricePerLitre: dieselPrice, total: 0 }
-    });
-
-    setTimeout(() => { setSuccess(false); setError(''); }, 3000);
   };
 
   const handleEdit = (log) => {
     setEditingLog(log);
     setFormData({
-      driverId: log.driverId,
+      driver_id: log.driver_id,
       machineType: log.machineType,
       farmerId: log.farmerId,
-      date: log.date,
+      date: new Date(log.date).toISOString().split('T')[0],
       sessions: log.sessions || [{ start: '', end: '', durationHours: 0 }],
       diesel: log.diesel || { mode: 'none', value: 0, pricePerLitre: dieselPrice, total: 0 }
     });
@@ -172,7 +208,7 @@ const DriverEntry = ({ userId }) => {
   };
 
   const handleDeleteLog = (logId) => {
-    const linkedJob = getData('rl_harvester_jobs').find(j => j.linkedLogIds && j.linkedLogIds.includes(logId));
+    const linkedJob = jobs.find(j => j.linkedLogIds && j.linkedLogIds.includes(logId));
     if (linkedJob) {
       const hasPaid = linkedJob.payments && linkedJob.payments.length > 0;
       if (hasPaid) {
@@ -188,20 +224,21 @@ const DriverEntry = ({ userId }) => {
     setPendingDeleteId(logId);
   };
 
-  const handleConfirmDelete = () => {
-    deleteRecord('rl_driver_logs', pendingDeleteId);
-    
-    // Unlink from job and recalculate
-    const jobs = getData('rl_harvester_jobs');
-    jobs.forEach(job => {
-      if (job.linkedLogIds && job.linkedLogIds.includes(pendingDeleteId)) {
+  const handleConfirmDelete = async () => {
+    try {
+      await apiService.deleteDriverSalary(pendingDeleteId);
+      
+      // Unlink from job and recalculate
+      const linkedJobs = jobs.filter(job => job.linkedLogIds && job.linkedLogIds.includes(pendingDeleteId));
+      for (let job of linkedJobs) {
         const newIds = job.linkedLogIds.filter(id => id !== pendingDeleteId);
-        const allLinkedLogs = getData('rl_driver_logs').filter(l => newIds.includes(l.id));
-        const newTotalHours = allLinkedLogs.reduce((sum,l)=>sum+l.totalHours,0);
+        const allLinkedLogs = allLogs.filter(l => newIds.includes(l._id));
+        const newTotalHours = allLinkedLogs.reduce((sum,l)=>sum+l.totalDuration,0);
         const newGross = newTotalHours * job.ratePerHour;
         const newFinal = Math.max(0, newGross - job.discount);
         const newDieselFromLogs = allLinkedLogs.reduce((sum,l)=>sum+(l.diesel?.total||0),0);
-        updateRecord('rl_harvester_jobs', job.id, { 
+        
+        await apiService.updateHarvesterJob(job._id, { 
           linkedLogIds: newIds,
           totalHours: newTotalHours,
           grossAmount: newGross,
@@ -209,11 +246,13 @@ const DriverEntry = ({ userId }) => {
           dieselFromLogs: newDieselFromLogs,
         });
       }
-    });
-    
-    setPendingDeleteId(null);
-    setConfirmMsg('');
-    refreshLogs();
+      
+      setPendingDeleteId(null);
+      setConfirmMsg('');
+      await refreshData();
+    } catch (err) {
+      setError('Error deleting log: ' + err.message);
+    }
   };
 
   const machineOptions = Object.keys(machineTypes).map(key => ({
@@ -221,17 +260,19 @@ const DriverEntry = ({ userId }) => {
     label: `${machineTypes[key].en} (${machineTypes[key].ta})`
   }));
 
-  const driverOptions = drivers.map(d => ({ value: d.id, label: d.name }));
+  const driverOptions = drivers.map(d => ({ value: d._id, label: d.name }));
+  const farmerOptions = farmers.map(f => ({ value: f._id, label: `${f.name} (${f.village})` }));
 
   const logsToDisplay = useMemo(() => {
     if (userId) {
       const today = new Date().toISOString().split('T')[0];
-      return allLogs.filter(l => l.date === today && l.driverId === userId);
+      return allLogs.filter(l => new Date(l.date).toISOString().split('T')[0] === today && l.driver_id === userId);
     } else {
       return allLogs.filter(l => {
-        const matchDriver = filterDriver === 'all' || l.driverId === filterDriver;
-        const matchFrom = !filterFromDate || l.date >= filterFromDate;
-        const matchTo = !filterToDate || l.date <= filterToDate;
+        const lDate = new Date(l.date).toISOString().split('T')[0];
+        const matchDriver = filterDriver === 'all' || l.driver_id === filterDriver;
+        const matchFrom = !filterFromDate || lDate >= filterFromDate;
+        const matchTo = !filterToDate || lDate <= filterToDate;
         const matchMachine = filterMachine === 'all' || l.machineType === filterMachine;
         return matchDriver && matchFrom && matchTo && matchMachine;
       });
@@ -248,7 +289,7 @@ const DriverEntry = ({ userId }) => {
         <div className="card">
           {editingLog ? (
             <div style={{ marginBottom: '15px', padding: '10px', background: '#EBF8FF', color: '#2B6CB0', borderRadius: '4px', fontWeight: 'bold' }}>
-              Editing Log: {editingLog.billId}
+              Editing Log: {editingLog.billId || 'Unbilled'}
             </div>
           ) : null}
           
@@ -257,13 +298,13 @@ const DriverEntry = ({ userId }) => {
               <SelectField 
                 english="Driver" tamil="ஓட்டுநர்" 
                 options={driverOptions}
-                value={formData.driverId}
-                onChange={(e) => handleFieldChange('driverId', e.target.value)}
+                value={formData.driver_id}
+                onChange={(e) => handleFieldChange('driver_id', e.target.value)}
                 required
               />
             ) : (
               <div style={{ padding: '10px', background: '#EDF2F7', borderRadius: '4px', fontSize: '0.9rem', color: '#4A5568' }}>
-                <strong>Driver:</strong> {drivers.find(d => d.id === userId)?.name || 'N/A'}
+                <strong>Driver:</strong> {drivers.find(d => d._id === userId)?.name || 'N/A'}
               </div>
             )}
           </div>
@@ -279,7 +320,7 @@ const DriverEntry = ({ userId }) => {
             english="Farmer Name" tamil="விவசாயி"
             value={formData.farmerId}
             onChange={(e) => handleFieldChange('farmerId', e.target.value)}
-            options={farmers}
+            options={farmerOptions}
             required
           />
           <InputField 
@@ -299,7 +340,7 @@ const DriverEntry = ({ userId }) => {
             />
           ))}
           <div style={{ marginTop: '10px' }}>
-            <Button onClick={addSession} variant="outline" fullWidth>+ Add Session (கூடுதல் நேரம்)</Button>
+            <Button type="button" onClick={addSession} variant="outline" fullWidth>+ Add Session (கூடுதல் நேரம்)</Button>
           </div>
           <div style={{ marginTop: '20px', textAlign: 'right', fontWeight: '700', color: '#1B3A6B', fontSize: '1.2rem' }}>
             Total Hours: {totalHours.toFixed(2)}
@@ -316,7 +357,7 @@ const DriverEntry = ({ userId }) => {
         <div style={{ display: 'flex', gap: '10px' }}>
           <Button type="submit" fullWidth>{editingLog ? 'Update Log (பதிவை புதுப்பி)' : 'பதிவு செய்க (SAVE LOG)'}</Button>
           {editingLog && (
-            <Button onClick={() => { setEditingLog(null); setFormData({...formData, sessions:[{start:'', end:'', durationHours:0}]}); }} variant="danger" fullWidth>Cancel (ரத்து)</Button>
+            <Button type="button" onClick={() => { setEditingLog(null); setFormData({...formData, sessions:[{start:'', end:'', durationHours:0}]}); }} variant="danger" fullWidth>Cancel (ரத்து)</Button>
           )}
         </div>
       </form>
@@ -353,25 +394,25 @@ const DriverEntry = ({ userId }) => {
         <div style={{ marginBottom: '10px', color: '#718096', fontSize: '0.9rem' }}>Showing {logsToDisplay.length} entries</div>
 
         {logsToDisplay.map(log => (
-          <div key={log.id} className="card" style={{ padding: '15px', borderLeft: '4px solid #1B3A6B' }}>
+          <div key={log._id} className="card" style={{ padding: '15px', borderLeft: '4px solid #1B3A6B' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <strong>{log.billId}</strong> <span style={{ color: '#718096', fontSize: '0.8rem' }}>| {log.date}</span>
+                <strong>{log.billId || 'Unbilled'}</strong> <span style={{ color: '#718096', fontSize: '0.8rem' }}>| {new Date(log.date).toLocaleDateString()}</span>
                 <div style={{ fontSize: '0.85rem', color: '#4a5568', marginTop: '5px' }}>
-                  Farmer: {farmers.find(f => f.value === log.farmerId)?.label} <br/>
-                  Driver: {drivers.find(d => d.id === log.driverId)?.name} <br/>
+                  Farmer: {farmers.find(f => f._id === log.farmerId)?.name} <br/>
+                  Driver: {drivers.find(d => d._id === log.driver_id)?.name} <br/>
                   Machine: {machineTypes[log.machineType]?.en}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ color: '#1A6B55', fontWeight: 'bold', fontSize: '1.1rem' }}>{log.totalHours.toFixed(2)} Hrs</div>
+                <div style={{ color: '#1A6B55', fontWeight: 'bold', fontSize: '1.1rem' }}>{(log.totalDuration || 0).toFixed(2)} Hrs</div>
               </div>
             </div>
             
             {!userId && (
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #E2E8F0' }}>
                 <button onClick={() => handleEdit(log)} style={{ background: 'none', border: 'none', color: '#3182CE', cursor: 'pointer', fontWeight: 'bold' }}>Edit (திருத்து)</button>
-                <button onClick={() => handleDeleteLog(log.id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: 'bold' }}>Delete (நீக்கு)</button>
+                <button onClick={() => handleDeleteLog(log._id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: 'bold' }}>Delete (நீக்கு)</button>
               </div>
             )}
           </div>

@@ -15,8 +15,7 @@ import Finance from './pages/Finance';
 import FarmerView from './pages/FarmerView';
 import System from './pages/System';
 import DriverDashboard from './pages/DriverDashboard';
-import { getData, saveData, getConfig } from './services/storage';
-import { initialFarmers, initialDrivers, initialPricingConfig } from './data/initialData';
+import { DataProvider } from './context/DataContext';
 import './index.css';
 
 function App() {
@@ -26,16 +25,7 @@ function App() {
   });
 
   useEffect(() => {
-    // Initial Seeding
-    if (getData('rl_farmers').length === 0) {
-      saveData('rl_farmers', initialFarmers);
-    }
-    if (getData('rl_drivers').length === 0) {
-      saveData('rl_drivers', initialDrivers);
-    }
-    if (Object.keys(getConfig('rl_pricing_config')).length === 0) {
-      saveData('rl_pricing_config', initialPricingConfig);
-    }
+    // Initial data load from backend should happen here or inside components
   }, []);
 
   const handleLogin = (userData) => {
@@ -57,7 +47,8 @@ function App() {
   const isFarmer = user.role === 'farmer';
 
   return (
-    <Router>
+    <DataProvider>
+      <Router>
       <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.2rem' }}>SmartUzhavan</span>
@@ -132,6 +123,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
+    </DataProvider>
   );
 }
 

@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { getData, addRecord } from '../services/storage';
-import { generateId } from '../utils/idGenerator';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
+import useRealTime from '../hooks/useRealTime';
 import { formatCurrency } from '../utils/formatters';
 import InputField from '../components/common/InputField';
 import SelectField from '../components/common/SelectField';
 import Button from '../components/common/Button';
 
 const OwnFarmIncome = () => {
+  const { data: incomeDataRealTime, syncData: setIncomeDataRealTime } = useRealTime('OwnFarmIncome', []);
+  const { execute: fetchIncome } = useAPI(apiService.getOwnFarmIncome.bind(apiService));
+
   const [entries, setEntries] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [error, setError] = useState('');
+  
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     incomeSource: 'paddy',
@@ -21,9 +27,24 @@ const OwnFarmIncome = () => {
     source: 'own_farm'
   });
 
+  const refreshData = async () => {
+    try {
+      const iData = await fetchIncome();
+      const iArray = iData?.data || iData || [];
+      setEntries(iArray);
+      setIncomeDataRealTime(iArray);
+    } catch (err) {
+      console.error('Data sync failed:', err);
+    }
+  };
+
   useEffect(() => {
-    setEntries(getData('rl_own_farm_income'));
+    refreshData();
   }, []);
+
+  useEffect(() => {
+    if (incomeDataRealTime.length > 0) setEntries(incomeDataRealTime);
+  }, [incomeDataRealTime]);
 
   useEffect(() => {
     let total = 0;
@@ -35,17 +56,23 @@ const OwnFarmIncome = () => {
     setFormData(prev => ({ ...prev, totalIncome: total }));
   }, [formData.incomeSource, formData.numberOfBags, formData.pricePerBag, formData.numberOfBundles, formData.pricePerBundle]);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const entry = {
       ...formData,
-      id: generateId('rl_own_farm_income'),
       status: 'received'
     };
-    addRecord('rl_own_farm_income', entry);
-    setEntries(getData('rl_own_farm_income'));
-    setShowAddForm(false);
-    setFormData({ date: new Date().toISOString().split('T')[0], incomeSource: 'paddy', numberOfBags: 0, pricePerBag: 0, numberOfBundles: 0, pricePerBundle: 0, totalIncome: 0, description: '', source: 'own_farm' });
+    
+    try {
+      await apiService.createOwnFarmIncome(entry);
+      await refreshData();
+      
+      setShowAddForm(false);
+      setFormData({ date: new Date().toISOString().split('T')[0], incomeSource: 'paddy', numberOfBags: 0, pricePerBag: 0, numberOfBundles: 0, pricePerBundle: 0, totalIncome: 0, description: '', source: 'own_farm' });
+    } catch (err) {
+      setError(err.message || 'Failed to add income record');
+      setTimeout(() => setError(''), 5000);
+    }
   };
 
   return (
@@ -54,6 +81,8 @@ const OwnFarmIncome = () => {
         <h1>சொந்த விவசாய வருமானம் (Own Farm Income)</h1>
         {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ New Sale</Button>}
       </div>
+
+      {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
       {showAddForm && (
         <form onSubmit={handleSave} className="card">
@@ -91,21 +120,22 @@ const OwnFarmIncome = () => {
           
           <div style={{ display: 'flex', gap: '10px' }}>
             <Button type="submit" fullWidth>Save Income (சேமி)</Button>
-            <Button onClick={() => setShowAddForm(false)} variant="danger" fullWidth>Cancel (ரத்து)</Button>
+            <Button type="button" onClick={() => setShowAddForm(false)} variant="danger" fullWidth>Cancel (ரத்து)</Button>
           </div>
         </form>
       )}
 
       <div className="list-container">
+        {entries.length === 0 && <p style={{textAlign:'center', color:'#718096'}}>No income records found.</p>}
         {entries.map(entry => (
-          <div key={entry.id} className="card">
+          <div key={entry._id} className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontWeight: 'bold' }}>
                   {entry.incomeSource === 'vaikool' ? 'வைக்கோல்' : 'நெல்'}
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#718096' }}>
-                  {entry.date} | {entry.incomeSource === 'vaikool' ? `${entry.numberOfBundles} கட்டுகள்` : `${entry.numberOfBags} மூட்டைகள்`}
+                  {new Date(entry.date).toLocaleDateString()} | {entry.incomeSource === 'vaikool' ? `${entry.numberOfBundles} கட்டுகள்` : `${entry.numberOfBags} மூட்டைகள்`}
                 </div>
               </div>
               <div style={{ fontWeight: 'bold', color: '#1A6B55' }}>{formatCurrency(entry.totalIncome)}</div>

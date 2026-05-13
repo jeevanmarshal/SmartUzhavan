@@ -11,14 +11,15 @@ const LogLinker = ({ logs, selectedIds, onToggle, farmers }) => {
       <label className={styles.label}>Select Driver Logs (பதிவுகளைத் தேர்ந்தெடுக்கவும்)</label>
       <div className={styles.list}>
         {logs.map(log => {
-          const isSelected = selectedIds.includes(log.id);
-          const farmer = farmers.find(f => f.id === log.farmerId);
+          const logId = log._id || log.id;
+          const isSelected = selectedIds.includes(logId);
+          const farmer = farmers.find(f => (f._id || f.id) === log.farmerId);
           
           return (
             <div 
-              key={log.id} 
+              key={logId} 
               className={`${styles.item} ${isSelected ? styles.selected : ''}`}
-              onClick={() => onToggle(log.id)}
+              onClick={() => onToggle(logId)}
             >
               <input 
                 type="checkbox" 
@@ -27,9 +28,9 @@ const LogLinker = ({ logs, selectedIds, onToggle, farmers }) => {
                 readOnly 
               />
               <div className={styles.info}>
-                <span className={styles.date}>{log.date || 'N/A'}</span>
-                <span className={styles.hours}>{(parseFloat(log.totalHours) || 0).toFixed(2)} Hrs</span>
-                <span className={styles.logId}>{log.id}</span>
+                <span className={styles.date}>{new Date(log.date).toLocaleDateString() || 'N/A'}</span>
+                <span className={styles.hours}>{(parseFloat(log.totalDuration || log.totalHours) || 0).toFixed(2)} Hrs</span>
+                <span className={styles.logId} title={log.billId}>{log.billId || logId.substring(0, 8)}</span>
               </div>
             </div>
           );

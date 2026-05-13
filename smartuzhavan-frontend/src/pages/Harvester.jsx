@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getData, getConfig, addRecord, addPayment as addJobPayment } from '../services/storage';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
+import useRealTime from '../hooks/useRealTime';
 import { generateBillId } from '../services/billId';
-import { generateId } from '../utils/idGenerator';
 import { seasons } from '../data/seasons';
 import { harvesterTypes } from '../data/machineTypes';
 import { getPaymentStatus } from '../services/calculations';
@@ -12,14 +13,25 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import LogLinker from '../components/harvester/LogLinker';
 import PaymentHistory from '../components/common/PaymentHistory';
-import { generateHarvesterPDF } from '../services/pdfService';
+import { generateHarvesterPDF as pdfGenerateHarvester } from '../services/pdfService';
 
 const Harvester = () => {
+  const { data: farmersData } = useRealTime('Farmer', []);
+  const { data: jobsData, syncData: setAllJobs } = useRealTime('HarvesterJob', []);
+  const { data: logsData, syncData: setAllLogs } = useRealTime('DriverSalary', []); // DriverLog
+
+  const { execute: fetchFarmers } = useAPI(apiService.getFarmers.bind(apiService));
+  const { execute: fetchSettings } = useAPI(() => apiService.request('GET', '/settings'));
+  const { execute: fetchJobs } = useAPI(apiService.getHarvesterJobs.bind(apiService));
+  const { execute: fetchLogs } = useAPI(apiService.getAllDriverSalaries.bind(apiService));
+
   const [farmers, setFarmers] = useState([]);
   const [pricing, setPricing] = useState(null);
-  const [allLogs, setAllLogs] = useState([]);
-  const [allJobs, setAllJobs] = useState([]);
+  const [allLogs, setLogs] = useState([]);
+  const [allJobs, setJobs] = useState([]);
+  
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeJobId, setActiveJobId] = useState(null);
 
@@ -37,24 +49,47 @@ const Harvester = () => {
     otherExpenses: []
   });
 
+  const refreshData = async () => {
+    try {
+      const [fData, sData, jData, lData] = await Promise.all([
+        fetchFarmers(), fetchSettings(), fetchJobs(), fetchLogs()
+      ]);
+      setFarmers(fData?.data || fData || []);
+      setPricing(sData?.data?.pricing || null);
+      
+      const jobsArray = jData?.data || jData || [];
+      setJobs(jobsArray);
+      setAllJobs(jobsArray);
+      
+      const logsArray = lData?.data || lData || [];
+      setLogs(logsArray);
+      setAllLogs(logsArray);
+    } catch (err) {
+      console.error('Data sync failed:', err);
+    }
+  };
+
   useEffect(() => {
-    setFarmers(getData('rl_farmers'));
-    setPricing(getConfig('rl_pricing_config'));
-    setAllLogs(getData('rl_driver_logs'));
-    setAllJobs(getData('rl_harvester_jobs'));
+    refreshData();
   }, []);
+
+  useEffect(() => {
+    if (farmersData.length > 0) setFarmers(farmersData);
+    if (jobsData.length > 0) setJobs(jobsData);
+    if (logsData.length > 0) setLogs(logsData);
+  }, [farmersData, jobsData, logsData]);
 
   useEffect(() => {
     if (pricing) {
       let rate = 0;
       if (formData.machineType === 'tyre') {
         rate = formData.wetField 
-          ? pricing.harvester.tyre_wet_field 
-          : pricing.harvester.tyre_standard;
+          ? pricing.harvester?.tyre_wet_field 
+          : pricing.harvester?.tyre_standard;
       } else {
-        rate = pricing.harvester.track;
+        rate = pricing.harvester?.track;
       }
-      setFormData(prev => ({ ...prev, ratePerHour: rate }));
+      setFormData(prev => ({ ...prev, ratePerHour: rate || 0 }));
     }
   }, [formData.machineType, formData.wetField, pricing]);
 
@@ -62,21 +97,21 @@ const Harvester = () => {
     if (!formData.farmerId) return [];
     const linkedIds = new Set();
     allJobs.forEach(job => {
-      if (job.status !== 'cancelled') {
-        job.linkedLogIds.forEach(id => linkedIds.add(id));
+      if (job.status !== 'cancelled' && job.linkedLogIds) {
+        job.linkedLogIds.forEach(id => linkedIds.add(id._id || id));
       }
     });
 
     return allLogs.filter(log => 
-      log.driverId && 
+      log.driver_id && 
       log.farmerId === formData.farmerId && 
       (log.machineType || '').includes(formData.machineType) &&
-      !linkedIds.has(log.id)
+      !linkedIds.has(log._id)
     );
   }, [formData.farmerId, formData.machineType, allLogs, allJobs]);
 
-  const selectedLogsData = allLogs.filter(l => formData.linkedLogIds.includes(l.id));
-  const totalHours = selectedLogsData.reduce((sum, l) => sum + (parseFloat(l.totalHours) || 0), 0);
+  const selectedLogsData = allLogs.filter(l => formData.linkedLogIds.includes(l._id));
+  const totalHours = selectedLogsData.reduce((sum, l) => sum + (parseFloat(l.totalDuration || l.totalHours) || 0), 0);
   const dieselFromLogs = selectedLogsData.reduce((sum, l) => sum + (parseFloat(l.diesel?.total) || 0), 0);
   const grossAmount = totalHours * (parseFloat(formData.ratePerHour) || 0);
   const finalAmount = Math.max(0, grossAmount - (parseFloat(formData.discount) || 0));
@@ -107,19 +142,19 @@ const Harvester = () => {
     });
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (formData.linkedLogIds.length === 0) {
       alert('Please link at least one driver log');
       return;
     }
 
-    const billId = generateBillId(formData.season, formData.seasonYear);
+    const billId = generateBillId(formData.season, formData.seasonYear, jobs);
     const jobRecord = {
       ...formData,
-      id: generateId('rl_harvester_jobs'),
+      farmer_id: formData.farmerId,
       billId,
-      village: farmers.find(f => f.id === formData.farmerId)?.village || '',
+      village: farmers.find(f => f._id === formData.farmerId)?.village || '',
       totalHours,
       grossAmount,
       finalAmount,
@@ -131,26 +166,54 @@ const Harvester = () => {
       status: 'active'
     };
 
-    addRecord('rl_harvester_jobs', jobRecord);
-    setAllJobs(getData('rl_harvester_jobs'));
-    setSuccess(true);
-    setShowAddForm(false);
-    
-    setFormData(prev => ({
-      ...prev,
-      farmerId: '',
-      linkedLogIds: [],
-      discount: 0,
-      additionalDiesel: 0,
-      otherExpenses: []
-    }));
+    try {
+      const createdJobRes = await apiService.createHarvesterJob(jobRecord);
+      const createdJob = createdJobRes.data || createdJobRes;
+      
+      // Also link the logs on the backend explicitly if needed
+      await apiService.request('POST', `/harvester-jobs/${createdJob._id}/link-logs`, { logIds: formData.linkedLogIds });
+      
+      await refreshData();
+      
+      setSuccess(true);
+      setShowAddForm(false);
+      
+      setFormData(prev => ({
+        ...prev,
+        farmerId: '',
+        linkedLogIds: [],
+        discount: 0,
+        additionalDiesel: 0,
+        otherExpenses: []
+      }));
 
-    setTimeout(() => setSuccess(false), 3000);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err.message || 'Error creating Harvester Job');
+      setTimeout(() => setError(''), 5000);
+    }
   };
 
-  const handleAddPayment = (jobId, payment) => {
-    addJobPayment('rl_harvester_jobs', jobId, payment);
-    setAllJobs(getData('rl_harvester_jobs'));
+  const handleAddPayment = async (jobId, payment) => {
+    try {
+      const job = allJobs.find(j => j._id === jobId);
+      if (!job) return;
+      const updatedPayments = [...(job.payments || []), payment];
+      await apiService.updateHarvesterJob(jobId, { payments: updatedPayments });
+      await refreshData();
+    } catch (err) {
+      alert('Failed to add payment: ' + err.message);
+    }
+  };
+  
+  const generateHarvesterPDF = async (job) => {
+    try {
+      const farmerId = job.farmer_id?._id || job.farmerId || job.farmer_id;
+      const farmer = farmers.find(f => f._id === farmerId);
+      await pdfGenerateHarvester(job, farmer);
+    } catch (err) {
+      alert('Error generating PDF: ' + err.message);
+    }
   };
 
   return (
@@ -161,6 +224,7 @@ const Harvester = () => {
       </div>
 
       {success && <div className="success-message">வெற்றிகரமாக சேமிக்கப்பட்டது (Successfully Saved)</div>}
+      {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
       {showAddForm && (
         <form onSubmit={handleSave}>
@@ -168,7 +232,7 @@ const Harvester = () => {
             <InputField english="Date" tamil="தேதி" type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required />
             <SelectField 
               english="Farmer" tamil="விவசாயி" 
-              options={farmers.map(f => ({ value: f.id, label: `${f.name} (${f.village})` }))}
+              options={farmers.map(f => ({ value: f._id, label: `${f.name} (${f.village})` }))}
               value={formData.farmerId}
               onChange={(e) => setFormData({ ...formData, farmerId: e.target.value, linkedLogIds: [] })}
               required
@@ -266,7 +330,7 @@ const Harvester = () => {
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
             <Button type="submit" fullWidth>Save Job (சேமி)</Button>
-            <Button onClick={() => setShowAddForm(false)} variant="danger" fullWidth>Cancel (ரத்து)</Button>
+            <Button type="button" onClick={() => setShowAddForm(false)} variant="danger" fullWidth>Cancel (ரத்து)</Button>
           </div>
         </form>
       )}
@@ -274,49 +338,52 @@ const Harvester = () => {
       <div className="list-container">
         <h3>அறுவடை பதிவுகள் (Harvester Jobs)</h3>
         {allJobs.map(job => {
-          const farmer = farmers.find(f => f.id === job.farmerId);
-          const isExpanded = activeJobId === job.id;
+          const farmerId = job.farmer_id?._id || job.farmerId || job.farmer_id;
+          const farmerName = job.farmer_id?.name || farmers.find(f => f._id === farmerId)?.name || 'Unknown';
+          const isExpanded = activeJobId === job._id;
           const status = getPaymentStatus(job.finalAmount, job.payments);
           
           return (
-            <div key={job.id} className="card" onClick={() => setActiveJobId(isExpanded ? null : job.id)} style={{ cursor: 'pointer' }}>
+            <div key={job._id} className="card" onClick={() => setActiveJobId(isExpanded ? null : job._id)} style={{ cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{job.billId}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#718096' }}>{farmer?.name} | {job.season} {job.seasonYear}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#718096' }}>{farmerName} | {job.season} {job.seasonYear}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
                    <Badge status={status} />
                    <button 
-                     onClick={(e) => { e.stopPropagation(); generateHarvesterPDF(job, farmer); }}
+                     onClick={(e) => { e.stopPropagation(); generateHarvesterPDF(job); }}
                      style={{ fontSize: '0.75rem', color: '#1B3A6B', border: '1px solid #1B3A6B', borderRadius: '4px', padding: '2px 8px', background: 'white', cursor: 'pointer' }}
+                     title="PDF Generation pending API integration"
                    >
                      PDF
                    </button>
                 </div>
               </div>
               <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
-                <span>{job.totalHours.toFixed(2)} Hrs @ {job.ratePerHour}</span>
+                <span>{(job.totalHours || 0).toFixed(2)} Hrs @ {job.ratePerHour}</span>
                 <span>{formatCurrency(job.finalAmount)}</span>
               </div>
 
               {isExpanded && (
                 <div onClick={(e) => e.stopPropagation()}>
                   <div style={{ fontSize: '0.8rem', color: '#718096', margin: '10px 0', borderTop: '1px solid #E2E8F0', paddingTop: '10px' }}>
-                    <div>Fuel: {formatCurrency(job.dieselFromLogs + job.additionalDiesel)}</div>
+                    <div>Fuel: {formatCurrency((job.dieselFromLogs||0) + (job.additionalDiesel||0))}</div>
                     <div>Other Exp: {formatCurrency(job.otherExpensesSum || 0)}</div>
                     <div style={{ fontWeight: 'bold', color: '#1A6B55' }}>Profit: {formatCurrency(job.netProfit)}</div>
                   </div>
                   <PaymentHistory 
-                    payments={job.payments} 
+                    payments={job.payments || []} 
                     totalAmount={job.finalAmount} 
-                    onAddPayment={(p) => handleAddPayment(job.id, p)}
+                    onAddPayment={(p) => handleAddPayment(job._id, p)}
                   />
                 </div>
               )}
             </div>
           );
         })}
+        {allJobs.length === 0 && <p style={{textAlign: 'center', color: '#718096'}}>No jobs found.</p>}
       </div>
     </div>
   );

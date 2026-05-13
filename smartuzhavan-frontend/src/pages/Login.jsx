@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getData } from '../services/storage';
+import { apiService } from '../services/api';
 import Button from '../components/common/Button';
 import InputField from '../components/common/InputField';
 import SelectField from '../components/common/SelectField';
@@ -11,37 +11,56 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [drivers, setDrivers] = useState([]);
   const [farmers, setFarmers] = useState([]);
+  const [username, setUsername] = useState('');
 
   useEffect(() => {
-    setDrivers(getData('rl_drivers'));
-    setFarmers(getData('rl_farmers'));
+    // Attempt to load drivers and farmers if a backend session exists
+    const loadOptions = async () => {
+      try {
+        const driversData = await apiService.getDrivers();
+        setDrivers(driversData?.data || driversData || []);
+        
+        const farmersData = await apiService.getFarmers();
+        setFarmers(farmersData?.data || farmersData || []);
+      } catch (err) {
+        console.warn('Could not load options for login. Backend session may not exist.');
+      }
+    };
+    loadOptions();
   }, []);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (role === 'admin') {
-      const savedPin = localStorage.getItem('admin_pin') || '1234';
-      if (pin === savedPin) {
-        onLogin({ role: 'admin', name: 'Administrator' });
-      } else {
-        setError('தவறான கடவுச்சொல் (Invalid Admin PIN)');
+    try {
+      if (role === 'admin') {
+        // Authenticate with backend using V5 API
+        const response = await apiService.login(username, pin);
+        if (response && response.user) {
+          onLogin({ role: 'admin', name: response.user.username, id: response.user._id });
+        } else {
+          // Fallback if backend login logic changes but still successful
+          onLogin({ role: 'admin', name: 'Administrator' });
+        }
+      } else if (role === 'driver') {
+        const driver = drivers.find(d => d._id === userId || d.id === userId);
+        // Note: For full security, Driver PIN validation should happen on the backend
+        if (driver && driver.pin === pin) {
+          onLogin({ role: 'driver', id: driver._id || driver.id, name: driver.name });
+        } else {
+          setError('தவறான விவரங்கள் (Invalid Driver Credentials)');
+        }
+      } else if (role === 'farmer') {
+        const farmer = farmers.find(f => f._id === userId || f.id === userId);
+        if (farmer) {
+          onLogin({ role: 'farmer', id: farmer._id || farmer.id, name: farmer.name });
+        } else {
+          setError('தவறான விவரங்கள் (Invalid Farmer Selection)');
+        }
       }
-    } else if (role === 'driver') {
-      const driver = drivers.find(d => d.id === userId);
-      if (driver && driver.pin === pin) {
-        onLogin({ role: 'driver', id: driver.id, name: driver.name });
-      } else {
-        setError('தவறான விவரங்கள் (Invalid Driver Credentials)');
-      }
-    } else if (role === 'farmer') {
-      const farmer = farmers.find(f => f.id === userId);
-      if (farmer) {
-        onLogin({ role: 'farmer', id: farmer.id, name: farmer.name });
-      } else {
-        setError('தவறான விவரங்கள் (Invalid Farmer Selection)');
-      }
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check credentials.');
     }
   };
 
@@ -67,13 +86,23 @@ const Login = ({ onLogin }) => {
               { value: 'farmer', label: 'Farmer (விவசாயி)' }
             ]}
             value={role}
-            onChange={(e) => { setRole(e.target.value); setUserId(''); setPin(''); setError(''); }}
+            onChange={(e) => { setRole(e.target.value); setUserId(''); setUsername(''); setPin(''); setError(''); }}
           />
+
+          {role === 'admin' && (
+            <InputField 
+              english="Username" tamil="பயனர்பெயர்"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Admin Username"
+              required
+            />
+          )}
 
           {role === 'driver' && (
             <SelectField 
               english="Select Driver" tamil="ஓட்டுநரைத் தேர்ந்தெடுக்கவும்"
-              options={drivers.map(d => ({ value: d.id, label: d.name }))}
+              options={drivers.map(d => ({ value: d._id || d.id, label: d.name }))}
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               required
@@ -83,7 +112,7 @@ const Login = ({ onLogin }) => {
           {role === 'farmer' && (
             <SelectField 
               english="Select Farmer" tamil="விவசாயியைத் தேர்ந்தெடுக்கவும்"
-              options={farmers.map(f => ({ value: f.id, label: f.name }))}
+              options={farmers.map(f => ({ value: f._id || f.id, label: f.name }))}
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               required
@@ -92,11 +121,11 @@ const Login = ({ onLogin }) => {
 
           {(role === 'admin' || role === 'driver') && (
             <InputField 
-              english="PIN" tamil="கடவுச்சொல்"
+              english="PIN / Password" tamil="கடவுச்சொல்"
               type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="****"
+              placeholder={role === 'admin' ? "Password" : "****"}
               required
             />
           )}

@@ -1,5 +1,3 @@
-import { getData } from './storage';
-
 export const SEASON_LABELS = {
   KUR: 'Kuruvai (குறுவை)',
   SAM: 'Samba (சம்பா)',
@@ -7,9 +5,8 @@ export const SEASON_LABELS = {
 };
 
 // Harvester Job Bill ID (HB-SS-YYYY-NNN)
-export function generateBillId(season, year) {
-  const jobs = getData('rl_harvester_jobs');
-  const existingRecords = jobs.filter(j => 
+export function generateBillId(season, year, existingJobs = []) {
+  const existingRecords = existingJobs.filter(j => 
     j.season === season && j.seasonYear === parseInt(year) && j.status !== 'cancelled'
   );
   
@@ -18,12 +15,11 @@ export function generateBillId(season, year) {
 }
 
 // Driver Log Bill ID (Bill-YYYY-SS-NNN)
-export function generateLogBillId(year) {
-  const logs = getData('rl_driver_logs');
+export function generateLogBillId(year, existingLogs = []) {
   const currentYear = parseInt(year) || new Date().getFullYear();
   
   // Count logs for this year to generate NNN
-  const yearLogs = logs.filter(l => {
+  const yearLogs = existingLogs.filter(l => {
     const logDate = new Date(l.date);
     return logDate.getFullYear() === currentYear;
   });

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getData, saveData, updateRecord, deleteRecord, addRecord, addPayment } from '../services/storage';
-import { generateId } from '../utils/idGenerator';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
+import useRealTime from '../hooks/useRealTime';
 import { formatCurrency } from '../utils/formatters';
 import InputField from '../components/common/InputField';
 import SelectField from '../components/common/SelectField';
@@ -12,20 +13,23 @@ const Drivers = ({ userId }) => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('tab1');
   
-  const [drivers, setDrivers] = useState([]);
-  const [salaries, setSalaries] = useState([]);
+  const { execute: fetchDrivers, loading: loadingDrivers } = useAPI(apiService.getDrivers.bind(apiService));
+  const { execute: fetchSalaries, loading: loadingSalaries } = useAPI(apiService.getAllDriverSalaries.bind(apiService));
+  
+  const { data: drivers, syncData: setDrivers } = useRealTime('Driver', []);
+  const { data: salaries, syncData: setSalaries } = useRealTime('DriverSalary', []);
   
   // Tab 1 state
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
-  const [driverData, setDriverData] = useState({ name: '', phone: '', pin: '', salaryRatePerHour: 150, active: true });
+  const [driverData, setDriverData] = useState({ name: '', phone: '', pin: '', baseRate: 150, active: true, village: '' });
   
   // Tab 2 state
   const [showAddSalary, setShowAddSalary] = useState(false);
   const [editingSalary, setEditingSalary] = useState(null);
   const [salaryData, setSalaryData] = useState({
     date: new Date().toISOString().split('T')[0],
-    driverId: '',
+    driver_id: '',
     baseSalary: 0,
     bonus: 0,
     extraAmount: 0,
@@ -39,47 +43,88 @@ const Drivers = ({ userId }) => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setDrivers(getData('rl_drivers'));
-    setSalaries(getData('rl_driver_salary'));
+    const init = async () => {
+      try {
+        const d = await fetchDrivers();
+        setDrivers(d || []);
+        
+        const params = userId ? { driverId: userId } : {};
+        const s = await fetchSalaries(params);
+        setSalaries(s || []);
+      } catch (err) {
+        setError('Failed to load initial data');
+      }
+    };
+    init();
     
     if (userId || searchParams.get('tab') === 'salary') {
       setActiveTab('tab2');
     }
   }, [userId, searchParams]);
 
-  // Tab 1 logic
-  const handleSaveDriver = (e) => {
-    e.preventDefault();
-    if (editingDriver) {
-      updateRecord('rl_drivers', editingDriver.id, driverData);
-      setEditingDriver(null);
-    } else {
-      addRecord('rl_drivers', { ...driverData, id: generateId('rl_drivers') });
-    }
-    setDrivers(getData('rl_drivers'));
-    setShowAddForm(false);
-    setDriverData({ name: '', phone: '', pin: '', salaryRatePerHour: 150, active: true });
-    setSuccess('Saved successfully');
+  const handleActionComplete = (msg) => {
+    setSuccess(msg);
     setTimeout(() => setSuccess(''), 3000);
   };
 
+  const handleActionError = (err) => {
+    setError(err.message || 'Operation failed');
+    setTimeout(() => setError(''), 5000);
+  };
+
+  // Tab 1 logic
+  const handleSaveDriver = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingDriver) {
+        await apiService.updateDriver(editingDriver._id, driverData);
+      } else {
+        await apiService.createDriver(driverData);
+      }
+      
+      // RealTime hook handles the state update if backend emits event, 
+      // but to be safe we can re-fetch or optimistically update.
+      const d = await fetchDrivers();
+      setDrivers(d || []);
+      
+      setShowAddForm(false);
+      setEditingDriver(null);
+      setDriverData({ name: '', phone: '', pin: '', baseRate: 150, active: true, village: '' });
+      handleActionComplete('Driver saved successfully');
+    } catch (err) {
+      handleActionError(err);
+    }
+  };
+
   const handleEditDriver = (driver) => {
-    setDriverData({ name: driver.name, phone: driver.phone, pin: driver.pin, salaryRatePerHour: driver.salaryRatePerHour, active: driver.active });
+    setDriverData({ 
+      name: driver.name, 
+      phone: driver.phone, 
+      pin: '', // Do not pre-fill PIN for security
+      baseRate: driver.baseRate, 
+      active: driver.active,
+      village: driver.village || ''
+    });
     setEditingDriver(driver);
     setShowAddForm(true);
   };
 
-  const handleDeleteDriver = (id) => {
+  const handleDeleteDriver = async (id) => {
     if (window.confirm('Delete this driver? (ஓட்டுநரை நீக்க வேண்டுமா?)')) {
-      deleteRecord('rl_drivers', id);
-      setDrivers(getData('rl_drivers'));
+      try {
+        await apiService.deleteDriver(id);
+        setDrivers(drivers.filter(d => d._id !== id));
+        handleActionComplete('Driver deleted successfully');
+      } catch (err) {
+        handleActionError(err);
+      }
     }
   };
 
   // Tab 2 logic
   const netPay = (parseFloat(salaryData.baseSalary)||0) + (parseFloat(salaryData.bonus)||0) + (parseFloat(salaryData.extraAmount)||0) - (parseFloat(salaryData.advance)||0);
 
-  const handleSaveSalary = (e) => {
+  const handleSaveSalary = async (e) => {
     e.preventDefault();
     if (!salaryData.baseSalary && !salaryData.bonus && !salaryData.extraAmount && !salaryData.advance) {
       setError('குறைந்தது ஒரு தொகை தேவை (At least one amount is required)');
@@ -94,46 +139,62 @@ const Drivers = ({ userId }) => {
       advance: parseFloat(salaryData.advance) || 0,
     };
 
-    if (editingSalary) {
-      updateRecord('rl_driver_salary', editingSalary.id, entry);
+    try {
+      if (editingSalary) {
+        await apiService.updateDriverSalary(editingSalary._id, entry);
+      } else {
+        await apiService.createDriverSalary(entry.driver_id, entry);
+      }
+      
+      const params = userId ? { driverId: userId } : {};
+      const s = await fetchSalaries(params);
+      setSalaries(s || []);
+
+      setShowAddSalary(false);
       setEditingSalary(null);
-    } else {
-      entry.id = generateId('rl_driver_salary');
-      entry.payments = [];
-      addRecord('rl_driver_salary', entry);
+      handleActionComplete('Salary entry saved');
+      setSalaryData({
+        date: new Date().toISOString().split('T')[0],
+        driver_id: userId || '',
+        baseSalary: 0,
+        bonus: 0,
+        extraAmount: 0,
+        advance: 0,
+        notes: ''
+      });
+    } catch (err) {
+      handleActionError(err);
     }
-    
-    setSalaries(getData('rl_driver_salary'));
-    setShowAddSalary(false);
-    setSuccess('Saved successfully');
-    setSalaryData({
-      date: new Date().toISOString().split('T')[0],
-      driverId: userId || '',
-      baseSalary: 0,
-      bonus: 0,
-      extraAmount: 0,
-      advance: 0,
-      notes: ''
-    });
-    setTimeout(() => { setSuccess(''); setError(''); }, 3000);
   };
 
-  const handleDeleteSalary = (id) => {
+  const handleDeleteSalary = async (id) => {
     if (window.confirm('Delete this salary entry? (இந்த பதிவை நீக்க வேண்டுமா?)')) {
-      deleteRecord('rl_driver_salary', id);
-      setSalaries(getData('rl_driver_salary'));
+      try {
+        await apiService.deleteDriverSalary(id);
+        setSalaries(salaries.filter(s => s._id !== id));
+        handleActionComplete('Salary entry deleted');
+      } catch (err) {
+        handleActionError(err);
+      }
     }
   };
 
-  const handleAddPayment = (salaryId, paymentData) => {
-    addPayment('rl_driver_salary', salaryId, paymentData);
-    setSalaries(getData('rl_driver_salary'));
+  const handleAddPayment = async (salaryId, paymentData) => {
+    try {
+      await apiService.addDriverSalaryPayment(salaryId, paymentData);
+      const params = userId ? { driverId: userId } : {};
+      const s = await fetchSalaries(params);
+      setSalaries(s || []);
+      handleActionComplete('Payment added');
+    } catch (err) {
+      handleActionError(err);
+    }
   };
 
   const handleEditSalary = (sal) => {
     setSalaryData({
-      date: sal.date,
-      driverId: sal.driverId,
+      date: new Date(sal.date).toISOString().split('T')[0],
+      driver_id: sal.driver_id,
       baseSalary: sal.baseSalary,
       bonus: sal.bonus,
       extraAmount: sal.extraAmount,
@@ -145,30 +206,14 @@ const Drivers = ({ userId }) => {
   };
 
   let filteredSalaries = salaries;
-  if (userId) filteredSalaries = filteredSalaries.filter(s => s.driverId === userId);
-  if (fromDate) filteredSalaries = filteredSalaries.filter(s => s.date >= fromDate);
-  if (toDate) filteredSalaries = filteredSalaries.filter(s => s.date <= toDate);
+  if (userId) filteredSalaries = filteredSalaries.filter(s => s.driver_id === userId);
+  if (fromDate) filteredSalaries = filteredSalaries.filter(s => new Date(s.date) >= new Date(fromDate));
+  if (toDate) filteredSalaries = filteredSalaries.filter(s => new Date(s.date) <= new Date(toDate));
 
   const handlePDF = async () => {
-    const url = import.meta.env.VITE_PDF_API_URL || 'https://smartuzhavan-production.up.railway.app/api/pdf';
-    let driverObj = null;
-    if (userId) {
-      driverObj = drivers.find(d => d.id === userId);
-    } else if (filteredSalaries.length > 0) {
-      driverObj = drivers.find(d => d.id === filteredSalaries[0].driverId);
-    }
     try {
-      const response = await fetch(`${url}/driver-salary-statement`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driver: driverObj, salaryRecords: filteredSalaries, fromDate, toDate })
-      });
-      if (!response.ok) throw new Error('PDF failed');
-      const blob = await response.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `driver_salary_statement.pdf`;
-      a.click();
+      // Stub for Phase 3/4 PDF functionality using new API structure
+      alert('PDF Generation will be connected in Phase 3/4 integration.');
     } catch(err) {
       alert('Error generating PDF');
     }
@@ -193,13 +238,16 @@ const Drivers = ({ userId }) => {
             {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ Add Driver</Button>}
           </div>
 
+          {loadingDrivers && <p>Loading drivers...</p>}
+
           {showAddForm && (
             <form onSubmit={handleSaveDriver} className="card">
               <h3>{editingDriver ? 'Edit Driver' : 'Add New Driver'}</h3>
               <InputField english="Name" tamil="பெயர்" value={driverData.name} onChange={(e) => setDriverData({...driverData, name: e.target.value})} required />
               <InputField english="Phone" tamil="தொலைபேசி" type="tel" value={driverData.phone} onChange={(e) => setDriverData({...driverData, phone: e.target.value})} required />
-              <InputField english="Security PIN" tamil="கடவுச்சொல்" type="password" value={driverData.pin} onChange={(e) => setDriverData({...driverData, pin: e.target.value})} placeholder="4 digits" />
-              <InputField english="Salary Rate (₹/hr)" tamil="மணி சம்பளம்" type="number" value={driverData.salaryRatePerHour} onChange={(e) => setDriverData({...driverData, salaryRatePerHour: parseFloat(e.target.value) || 0})} required />
+              <InputField english="Village" tamil="ஊர்" value={driverData.village} onChange={(e) => setDriverData({...driverData, village: e.target.value})} required />
+              <InputField english="Security PIN" tamil="கடவுச்சொல்" type="password" value={driverData.pin} onChange={(e) => setDriverData({...driverData, pin: e.target.value})} placeholder={editingDriver ? "Leave blank to keep current" : "4-6 digits"} required={!editingDriver} />
+              <InputField english="Salary Rate (₹/hr)" tamil="மணி சம்பளம்" type="number" value={driverData.baseRate} onChange={(e) => setDriverData({...driverData, baseRate: parseFloat(e.target.value) || 0})} required />
               <div style={{ marginBottom: '15px' }}>
                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={driverData.active} onChange={(e) => setDriverData({ ...driverData, active: e.target.checked })} />
@@ -208,22 +256,22 @@ const Drivers = ({ userId }) => {
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <Button type="submit" fullWidth>Save (சேமி)</Button>
-                <Button onClick={() => { setShowAddForm(false); setEditingDriver(null); }} variant="danger" fullWidth>Cancel (ரத்து)</Button>
+                <Button type="button" onClick={() => { setShowAddForm(false); setEditingDriver(null); }} variant="danger" fullWidth>Cancel (ரத்து)</Button>
               </div>
             </form>
           )}
 
           <div className="list-container">
             {drivers.map(driver => (
-              <div key={driver.id} className="card" style={{ padding: '15px', borderLeft: driver.active ? '4px solid #1A6B55' : '4px solid #e53e3e' }}>
+              <div key={driver._id} className="card" style={{ padding: '15px', borderLeft: driver.active ? '4px solid #1A6B55' : '4px solid #e53e3e' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <div style={{ fontWeight: '700' }}>{driver.name} <span style={{ color: '#718096', fontSize: '0.8rem' }}>[{driver.id}]</span></div>
-                    <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>Rate: ₹ {driver.salaryRatePerHour}/hr | {driver.phone}</div>
+                    <div style={{ fontWeight: '700' }}>{driver.name} <span style={{ color: '#718096', fontSize: '0.8rem' }}>[{driver.village}]</span></div>
+                    <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>Rate: ₹ {driver.baseRate}/hr | {driver.phone}</div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button onClick={() => handleEditDriver(driver)} style={{ background: 'none', border: 'none', color: '#1A6B55', cursor: 'pointer', fontWeight: '600' }}>Edit</button>
-                    <button onClick={() => handleDeleteDriver(driver.id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: '600' }}>Delete</button>
+                    <button onClick={() => handleDeleteDriver(driver._id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: '600' }}>Delete</button>
                   </div>
                 </div>
               </div>
@@ -239,13 +287,15 @@ const Drivers = ({ userId }) => {
             {!showAddSalary && !userId && <Button onClick={() => setShowAddSalary(true)}>+ New Salary Entry</Button>}
           </div>
 
+          {loadingSalaries && <p>Loading salaries...</p>}
+
           {showAddSalary && !userId && (
             <form onSubmit={handleSaveSalary} className="card">
               <h3>{editingSalary ? 'Edit Salary' : 'New Salary Entry'}</h3>
               <SelectField 
                 english="Driver" tamil="ஓட்டுநர்" 
-                options={drivers.filter(d => d.active || d.id === salaryData.driverId).map(d => ({ value: d.id, label: d.name }))}
-                value={salaryData.driverId} onChange={e => setSalaryData({...salaryData, driverId: e.target.value})} required
+                options={drivers.filter(d => d.active || d._id === salaryData.driver_id).map(d => ({ value: d._id, label: d.name }))}
+                value={salaryData.driver_id} onChange={e => setSalaryData({...salaryData, driver_id: e.target.value})} required
               />
               <InputField english="Date" tamil="தேதி" type="date" value={salaryData.date} onChange={e => setSalaryData({...salaryData, date: e.target.value})} required />
               
@@ -265,7 +315,7 @@ const Drivers = ({ userId }) => {
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <Button type="submit" fullWidth>{editingSalary ? 'Update' : 'Save'}</Button>
-                <Button onClick={() => { setShowAddSalary(false); setEditingSalary(null); }} variant="danger" fullWidth>Cancel</Button>
+                <Button type="button" onClick={() => { setShowAddSalary(false); setEditingSalary(null); }} variant="danger" fullWidth>Cancel</Button>
               </div>
             </form>
           )}
@@ -289,12 +339,12 @@ const Drivers = ({ userId }) => {
               const currentNet = (parseFloat(sal.baseSalary)||0) + (parseFloat(sal.bonus)||0) + (parseFloat(sal.extraAmount)||0) - (parseFloat(sal.advance)||0);
               const paid = (sal.payments || []).reduce((sum, p) => sum + parseFloat(p.amount), 0);
               const balance = currentNet - paid;
-              const driverName = drivers.find(d => d.id === sal.driverId)?.name || 'Unknown';
+              const driverName = drivers.find(d => d._id === sal.driver_id)?.name || 'Unknown';
               return (
-                <div key={sal.id} className="card" style={{ padding: '15px' }}>
+                <div key={sal._id} className="card" style={{ padding: '15px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <div>
-                      <div style={{ fontWeight: 'bold' }}>{driverName} <span style={{color: '#718096', fontSize: '0.8rem', fontWeight: 'normal'}}>| {sal.date}</span></div>
+                      <div style={{ fontWeight: 'bold' }}>{driverName} <span style={{color: '#718096', fontSize: '0.8rem', fontWeight: 'normal'}}>| {new Date(sal.date).toLocaleDateString()}</span></div>
                       <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '2px' }}>
                         Base: {sal.baseSalary} | Bonus: {sal.bonus} | Ext: {sal.extraAmount} | Adv: {sal.advance}
                       </div>
@@ -308,7 +358,7 @@ const Drivers = ({ userId }) => {
                   
                   <PaymentHistory 
                     payments={sal.payments || []}
-                    onAddPayment={userId ? null : (payment) => handleAddPayment(sal.id, payment)}
+                    onAddPayment={userId ? null : (payment) => handleAddPayment(sal._id, payment)}
                   />
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #E2E8F0' }}>
@@ -318,7 +368,7 @@ const Drivers = ({ userId }) => {
                     {!userId && (
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <button onClick={() => handleEditSalary(sal)} style={{ background: 'none', border: 'none', color: '#3182CE', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
-                        <button onClick={() => handleDeleteSalary(sal.id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: 'bold' }}>Delete</button>
+                        <button onClick={() => handleDeleteSalary(sal._id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: 'bold' }}>Delete</button>
                       </div>
                     )}
                   </div>

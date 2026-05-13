@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { getData, addRecord } from '../services/storage';
-import { generateId } from '../utils/idGenerator';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
+import useRealTime from '../hooks/useRealTime';
 import { formatCurrency } from '../utils/formatters';
 import InputField from '../components/common/InputField';
 import SelectField from '../components/common/SelectField';
 import Button from '../components/common/Button';
 
 const Expenses = () => {
+  const { data: expensesData, syncData: setExpensesDataRealTime } = useRealTime('Expense', []);
+  const { execute: fetchExpenses } = useAPI(apiService.getExpenses.bind(apiService));
+
   const [expenses, setExpenses] = useState([]);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -18,9 +23,24 @@ const Expenses = () => {
     description: ''
   });
 
+  const refreshData = async () => {
+    try {
+      const data = await fetchExpenses();
+      const eArray = data?.data || data || [];
+      setExpenses(eArray);
+      setExpensesDataRealTime(eArray);
+    } catch (err) {
+      console.error('Data sync failed:', err);
+    }
+  };
+
   useEffect(() => {
-    setExpenses(getData('rl_expenses'));
+    refreshData();
   }, []);
+
+  useEffect(() => {
+    if (expensesData.length > 0) setExpenses(expensesData);
+  }, [expensesData]);
 
   const CATEGORY_MAP = {
     business: [
@@ -58,30 +78,37 @@ const Expenses = () => {
     });
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const newExpense = {
       ...formData,
-      id: generateId('rl_expenses'),
       amount: parseFloat(formData.amount) || 0
     };
-    addRecord('rl_expenses', newExpense);
-    setExpenses([newExpense, ...expenses]);
-    setSuccess(true);
-    setFormData({ 
-      date: new Date().toISOString().split('T')[0], 
-      source: 'business',
-      category: 'maintenance', 
-      amount: '', 
-      description: '' 
-    });
-    setTimeout(() => setSuccess(false), 3000);
+    
+    try {
+      await apiService.createExpense(newExpense);
+      await refreshData();
+      
+      setSuccess(true);
+      setFormData({ 
+        date: new Date().toISOString().split('T')[0], 
+        source: 'business',
+        category: 'maintenance', 
+        amount: '', 
+        description: '' 
+      });
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to save expense');
+      setTimeout(() => setError(''), 5000);
+    }
   };
 
   return (
     <div className="app-container">
       <h1>செலவுகள் (General Expenses)</h1>
       {success && <div className="success-message">பதிவு செய்யப்பட்டது (Saved)</div>}
+      {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
       <form onSubmit={handleSave} className="card">
         <InputField 
@@ -115,12 +142,13 @@ const Expenses = () => {
 
       <div style={{ marginTop: '30px' }}>
         <h3>செலவு வரலாறு (Expense History)</h3>
+        {expenses.length === 0 && <p style={{textAlign:'center', color:'#718096'}}>No expenses found.</p>}
         {expenses.map(exp => (
-          <div key={exp.id} className="card" style={{ padding: '12px', borderLeft: '4px solid #C53030' }}>
+          <div key={exp._id} className="card" style={{ padding: '12px', borderLeft: '4px solid #C53030' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontWeight: '700' }}>{CATEGORY_MAP[exp.source]?.find(c => c.value === exp.category)?.ta || exp.category}</div>
-                <div style={{ fontSize: '0.85rem', color: '#718096' }}>{exp.date} | {exp.description}</div>
+                <div style={{ fontSize: '0.85rem', color: '#718096' }}>{new Date(exp.date).toLocaleDateString()} | {exp.description}</div>
               </div>
               <div style={{ fontWeight: 'bold', color: '#C53030' }}>- {formatCurrency(exp.amount)}</div>
             </div>

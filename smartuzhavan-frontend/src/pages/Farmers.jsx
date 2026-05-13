@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { getData, saveData, updateRecord, deleteRecord } from '../services/storage';
-import { generateId } from '../utils/idGenerator';
+import { apiService } from '../services/api';
+import useAPI from '../hooks/useAPI';
+import useRealTime from '../hooks/useRealTime';
 import InputField from '../components/common/InputField';
 import SelectField from '../components/common/SelectField';
 import Button from '../components/common/Button';
 
 const Farmers = () => {
+  const { data: farmersData, syncData: setFarmersDataRealTime } = useRealTime('Farmer', []);
+  const { execute: fetchFarmers } = useAPI(apiService.getFarmers.bind(apiService));
+
   const [farmers, setFarmers] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingFarmer, setEditingFarmer] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -18,54 +23,73 @@ const Farmers = () => {
     type: 'external'
   });
 
+  const refreshData = async () => {
+    try {
+      const data = await fetchFarmers();
+      const fArray = data?.data || data || [];
+      setFarmers(fArray);
+      setFarmersDataRealTime(fArray);
+    } catch (err) {
+      console.error('Data sync failed:', err);
+    }
+  };
+
   useEffect(() => {
-    setFarmers(getData('rl_farmers'));
+    refreshData();
   }, []);
 
-  const handleSave = (e) => {
+  useEffect(() => {
+    if (farmersData.length > 0) setFarmers(farmersData);
+  }, [farmersData]);
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (editingFarmer) {
-      updateRecord('rl_farmers', editingFarmer.id, formData);
-      setEditingFarmer(null);
-    } else {
-      const newFarmer = {
-        ...formData,
-        id: generateId('rl_farmers')
-      };
-      const list = [...farmers, newFarmer];
-      saveData('rl_farmers', list);
+    try {
+      if (editingFarmer) {
+        await apiService.updateFarmer(editingFarmer._id, formData);
+        setEditingFarmer(null);
+      } else {
+        await apiService.createFarmer(formData);
+      }
+      
+      await refreshData();
+      setShowAddForm(false);
+      setFormData({ name: '', village: '', phone: '', type: 'external' });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to save farmer');
+      setTimeout(() => setError(''), 5000);
     }
-    
-    setFarmers(getData('rl_farmers'));
-    setShowAddForm(false);
-    setFormData({ name: '', village: '', phone: '', type: 'external' });
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
   };
 
   const handleEdit = (farmer) => {
-    if (farmer.id === 'F000') {
+    if (farmer._id === 'F000') {
       alert('Cannot edit Own Farm (F000)');
       return;
     }
     setFormData({
       name: farmer.name,
       village: farmer.village,
-      phone: farmer.phone,
-      type: farmer.type
+      phone: farmer.phone || '',
+      type: farmer.type || 'external'
     });
     setEditingFarmer(farmer);
     setShowAddForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (id === 'F000') {
       alert('Cannot delete Own Farm (F000)');
       return;
     }
     if (window.confirm('Are you sure you want to delete this farmer? (விவசாயியை நீக்க வேண்டுமா?)')) {
-      deleteRecord('rl_farmers', id);
-      setFarmers(getData('rl_farmers'));
+      try {
+        await apiService.request('DELETE', `/farmers/${id}`); // Assuming delete endpoint exists
+        await refreshData();
+      } catch (err) {
+        alert('Failed to delete farmer: ' + err.message);
+      }
     }
   };
 
@@ -77,6 +101,7 @@ const Farmers = () => {
       </div>
 
       {success && <div className="success-message">வெற்றிகரமாகச் சேமிக்கப்பட்டது (Saved)</div>}
+      {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
       {showAddForm && (
         <form onSubmit={handleSave} className="card">
@@ -105,26 +130,27 @@ const Farmers = () => {
           />
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
             <Button type="submit" fullWidth>Save (சேமி)</Button>
-            <Button onClick={() => { setShowAddForm(false); setEditingFarmer(null); }} variant="danger" fullWidth>Cancel (ரத்து)</Button>
+            <Button type="button" onClick={() => { setShowAddForm(false); setEditingFarmer(null); }} variant="danger" fullWidth>Cancel (ரத்து)</Button>
           </div>
         </form>
       )}
 
       <div className="list-container">
         {farmers.map(farmer => (
-          <div key={farmer.id} className="card" style={{ padding: '15px' }}>
+          <div key={farmer._id} className="card" style={{ padding: '15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontWeight: '700' }}>{farmer.name} <span style={{ color: '#718096', fontSize: '0.8rem' }}>[{farmer.id}]</span></div>
+                <div style={{ fontWeight: '700' }}>{farmer.name}</div>
                 <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>{farmer.village} | {farmer.phone || 'No Phone'}</div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => handleEdit(farmer)} style={{ background: 'none', border: 'none', color: '#1A6B55', cursor: 'pointer', fontWeight: '600' }}>Edit</button>
-                <button onClick={() => handleDelete(farmer.id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: '600' }}>Delete</button>
+                <button onClick={() => handleDelete(farmer._id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: '600' }}>Delete</button>
               </div>
             </div>
           </div>
         ))}
+        {farmers.length === 0 && <p style={{textAlign:'center', color:'#718096'}}>No farmers found.</p>}
       </div>
     </div>
   );

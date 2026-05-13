@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getData } from '../services/storage';
+import { apiService } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 import { seasons } from '../data/seasons';
 import Button from '../components/common/Button';
@@ -7,6 +7,7 @@ import Button from '../components/common/Button';
 const Reports = () => {
   const [reportType, setReportType] = useState('monthly');
   const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     generateReport();
@@ -38,64 +39,98 @@ const Reports = () => {
     }
   };
 
-  const generateReport = () => {
-    const jobs = getData('rl_harvester_jobs').filter(j => j.status !== 'cancelled');
-    const rentals = getData('rl_rentals');
-    const expenses = getData('rl_expenses');
-    const salaries = getData('rl_driver_salary');
-    const workers = getData('rl_work_entries');
-    const farmers = getData('rl_farmers');
+  const generateReport = async () => {
+    setLoading(true);
+    try {
+      // Fetch all necessary data
+      const [
+        jobsData, rentalsData, expensesData, 
+        farmersData, driversData
+      ] = await Promise.all([
+        apiService.getHarvesterJobs(),
+        apiService.getRentals(),
+        apiService.getExpenses(),
+        apiService.getFarmers(),
+        apiService.getDrivers()
+      ]);
 
-    if (reportType === 'monthly') {
-      // Monthly Summary
-      const summary = {};
-      [...jobs, ...rentals].forEach(item => {
-        const date = new Date(item.date || item.createdAt || new Date()); // Default to now if missing
-        const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
-        if (!summary[key]) summary[key] = { income: 0, expense: 0 };
-        summary[key].income += (item.finalAmount || item.totalAmount || 0);
-      });
-      [...expenses, ...salaries, ...workers].forEach(item => {
-        const date = new Date(item.date || new Date());
-        const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
-        if (!summary[key]) summary[key] = { income: 0, expense: 0 };
-        summary[key].expense += (item.amount || item.netPay || item.netPayable || 0);
-      });
-      setData(Object.entries(summary).map(([month, vals]) => ({ label: month, ...vals })));
-    } else if (reportType === 'machine') {
-      const machineData = { tyre: { income: 0, jobs: 0 }, track: { income: 0, jobs: 0 } };
-      jobs.forEach(j => {
-        if (machineData[j.machineType]) {
-          machineData[j.machineType].income += j.finalAmount;
-          machineData[j.machineType].jobs += 1;
-        }
-      });
-      setData(Object.entries(machineData).map(([type, vals]) => ({ label: type.toUpperCase(), ...vals })));
-    } else if (reportType === 'farmer') {
-      const balances = farmers.map(f => {
-        const fJobs = jobs.filter(j => j.farmerId === f.id);
-        const fRentals = rentals.filter(r => r.farmerId === f.id);
-        const total = fJobs.reduce((s, j) => s + j.finalAmount, 0) + fRentals.reduce((s, r) => s + r.totalAmount, 0);
-        const paid = [...fJobs, ...fRentals].reduce((s, item) => s + (item.payments || []).reduce((pSum, p) => pSum + p.amount, 0), 0);
-        return { label: f.name, total, paid, balance: total - paid };
-      }).filter(f => f.balance > 0);
-      setData(balances);
-    } else if (reportType === 'driver') {
-        const driverList = getData('rl_drivers');
-        const driverStats = driverList.map(d => {
-            const dSals = salaries.filter(s => s.driverId === d.id);
-            const totalEarned = dSals.reduce((s, sal) => s + sal.netPay, 0);
-            const totalPaid = dSals.reduce((s, sal) => s + (sal.payments || []).reduce((pSum, p) => pSum + p.amount, 0), 0);
-            return { label: d.name, earned: totalEarned, paid: totalPaid, balance: totalEarned - totalPaid };
+      const jobs = (jobsData?.data || jobsData || []).filter(j => j.status !== 'cancelled');
+      const rentals = rentalsData?.data || rentalsData || [];
+      const expenses = expensesData?.data || expensesData || [];
+      const farmers = farmersData?.data || farmersData || [];
+      const drivers = driversData?.data || driversData || [];
+      
+      // Additional fetching logic for salaries and workers might require specific API endpoints.
+      // Assuming empty arrays if not globally fetchable easily right now.
+      let salaries = [];
+      let workers = [];
+      
+      try {
+        const salariesReq = await apiService.getAllDriverSalaries();
+        salaries = salariesReq?.data || salariesReq || [];
+      } catch (e) {
+        // Fallback or ignore if endpoint doesn't exist
+      }
+      try {
+        const workersReq = await apiService.getAllWorkerRecords();
+        workers = workersReq?.data || workersReq || [];
+      } catch (e) {
+        // Fallback or ignore if endpoint doesn't exist
+      }
+
+      if (reportType === 'monthly') {
+        const summary = {};
+        [...jobs, ...rentals].forEach(item => {
+          const date = new Date(item.date || item.createdAt || new Date());
+          const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+          if (!summary[key]) summary[key] = { income: 0, expense: 0 };
+          summary[key].income += (item.finalAmount || item.totalAmount || 0);
         });
-        setData(driverStats);
-    } else if (reportType === 'season') {
-        const seasonStats = seasons.map(s => {
-            const sJobs = jobs.filter(j => j.season === s.value);
-            const income = sJobs.reduce((sum, j) => sum + j.finalAmount, 0);
-            return { label: s.label, count: sJobs.length, income };
+        [...expenses, ...salaries, ...workers].forEach(item => {
+          const date = new Date(item.date || new Date());
+          const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+          if (!summary[key]) summary[key] = { income: 0, expense: 0 };
+          summary[key].expense += (item.amount || item.netPay || item.netPayable || 0);
         });
-        setData(seasonStats);
+        setData(Object.entries(summary).map(([month, vals]) => ({ label: month, ...vals })));
+      } else if (reportType === 'machine') {
+        const machineData = { tyre: { income: 0, jobs: 0 }, track: { income: 0, jobs: 0 } };
+        jobs.forEach(j => {
+          if (machineData[j.machineType]) {
+            machineData[j.machineType].income += j.finalAmount;
+            machineData[j.machineType].jobs += 1;
+          }
+        });
+        setData(Object.entries(machineData).map(([type, vals]) => ({ label: type.toUpperCase(), ...vals })));
+      } else if (reportType === 'farmer') {
+        const balances = farmers.map(f => {
+          const fJobs = jobs.filter(j => (j.farmer_id?._id || j.farmerId) === f._id);
+          const fRentals = rentals.filter(r => (r.farmer_id?._id || r.farmerId) === f._id);
+          const total = fJobs.reduce((s, j) => s + j.finalAmount, 0) + fRentals.reduce((s, r) => s + r.totalAmount, 0);
+          const paid = [...fJobs, ...fRentals].reduce((s, item) => s + (item.payments || []).reduce((pSum, p) => pSum + p.amount, 0), 0);
+          return { label: f.name, total, paid, balance: total - paid };
+        }).filter(f => f.balance > 0);
+        setData(balances);
+      } else if (reportType === 'driver') {
+          const driverStats = drivers.map(d => {
+              const dSals = salaries.filter(s => (s.driver_id?._id || s.driverId) === d._id);
+              const totalEarned = dSals.reduce((s, sal) => s + sal.netPay, 0);
+              const totalPaid = dSals.reduce((s, sal) => s + (sal.payments || []).reduce((pSum, p) => pSum + p.amount, 0), 0);
+              return { label: d.name, earned: totalEarned, paid: totalPaid, balance: totalEarned - totalPaid };
+          });
+          setData(driverStats);
+      } else if (reportType === 'season') {
+          const seasonStats = seasons.map(s => {
+              const sJobs = jobs.filter(j => j.season === s.value);
+              const income = sJobs.reduce((sum, j) => sum + j.finalAmount, 0);
+              return { label: s.label, count: sJobs.length, income };
+          });
+          setData(seasonStats);
+      }
+    } catch (err) {
+      console.error('Failed to generate report', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -116,77 +151,81 @@ const Reports = () => {
         </div>
       </div>
 
-      <div className="list-container">
-        {reportType === 'monthly' && (
-          <table>
-            <thead>
-              <tr><th>Month</th><th>Income</th><th>Expense</th><th>Profit</th></tr>
-            </thead>
-            <tbody>
-              {data.map(row => (
-                <tr key={row.label}>
-                  <td>{row.label}</td>
-                  <td style={{ color: '#38A169' }}>{formatCurrency(row.income)}</td>
-                  <td style={{ color: '#E53E3E' }}>{formatCurrency(row.expense)}</td>
-                  <td style={{ fontWeight: 'bold' }}>{formatCurrency(row.income - row.expense)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '20px' }}>Loading Data...</div>
+      ) : (
+        <div className="list-container">
+          {reportType === 'monthly' && (
+            <table>
+              <thead>
+                <tr><th>Month</th><th>Income</th><th>Expense</th><th>Profit</th></tr>
+              </thead>
+              <tbody>
+                {data.map(row => (
+                  <tr key={row.label}>
+                    <td>{row.label}</td>
+                    <td style={{ color: '#38A169' }}>{formatCurrency(row.income)}</td>
+                    <td style={{ color: '#E53E3E' }}>{formatCurrency(row.expense)}</td>
+                    <td style={{ fontWeight: 'bold' }}>{formatCurrency(row.income - row.expense)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
-        {reportType === 'machine' && (
-          <table>
-            <thead>
-              <tr><th>Type</th><th>Total Jobs</th><th>Total Revenue</th></tr>
-            </thead>
-            <tbody>
-              {data.map(row => (
-                <tr key={row.label}><td>{row.label}</td><td>{row.jobs}</td><td>{formatCurrency(row.income)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          {reportType === 'machine' && (
+            <table>
+              <thead>
+                <tr><th>Type</th><th>Total Jobs</th><th>Total Revenue</th></tr>
+              </thead>
+              <tbody>
+                {data.map(row => (
+                  <tr key={row.label}><td>{row.label}</td><td>{row.jobs}</td><td>{formatCurrency(row.income)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
-        {reportType === 'farmer' && (
-          <table>
-            <thead>
-              <tr><th>Farmer</th><th>Total Bill</th><th>Paid</th><th>Outstanding</th></tr>
-            </thead>
-            <tbody>
-              {data.map(row => (
-                <tr key={row.label}><td>{row.label}</td><td>{formatCurrency(row.total)}</td><td>{formatCurrency(row.paid)}</td><td style={{ color: '#E53E3E', fontWeight: 'bold' }}>{formatCurrency(row.balance)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          {reportType === 'farmer' && (
+            <table>
+              <thead>
+                <tr><th>Farmer</th><th>Total Bill</th><th>Paid</th><th>Outstanding</th></tr>
+              </thead>
+              <tbody>
+                {data.map(row => (
+                  <tr key={row.label}><td>{row.label}</td><td>{formatCurrency(row.total)}</td><td>{formatCurrency(row.paid)}</td><td style={{ color: '#E53E3E', fontWeight: 'bold' }}>{formatCurrency(row.balance)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
-        {reportType === 'driver' && (
-          <table>
-            <thead>
-              <tr><th>Driver</th><th>Earned</th><th>Paid</th><th>Balance</th></tr>
-            </thead>
-            <tbody>
-              {data.map(row => (
-                <tr key={row.label}><td>{row.label}</td><td>{formatCurrency(row.earned)}</td><td>{formatCurrency(row.paid)}</td><td style={{ color: '#E53E3E' }}>{formatCurrency(row.balance)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          {reportType === 'driver' && (
+            <table>
+              <thead>
+                <tr><th>Driver</th><th>Earned</th><th>Paid</th><th>Balance</th></tr>
+              </thead>
+              <tbody>
+                {data.map(row => (
+                  <tr key={row.label}><td>{row.label}</td><td>{formatCurrency(row.earned)}</td><td>{formatCurrency(row.paid)}</td><td style={{ color: '#E53E3E' }}>{formatCurrency(row.balance)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
-        {reportType === 'season' && (
-          <table>
-            <thead>
-              <tr><th>Season</th><th>Job Count</th><th>Total Revenue</th></tr>
-            </thead>
-            <tbody>
-              {data.map(row => (
-                <tr key={row.label}><td>{row.label}</td><td>{row.count}</td><td>{formatCurrency(row.income)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          {reportType === 'season' && (
+            <table>
+              <thead>
+                <tr><th>Season</th><th>Job Count</th><th>Total Revenue</th></tr>
+              </thead>
+              <tbody>
+                {data.map(row => (
+                  <tr key={row.label}><td>{row.label}</td><td>{row.count}</td><td>{formatCurrency(row.income)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
       
       <style>{`
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }

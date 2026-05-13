@@ -5,6 +5,7 @@ const AuditLog = require('../models/AuditLog');
 const ChangeHistory = require('../models/ChangeHistory');
 const logger = require('../utils/logger');
 const { isAuthenticated } = require('../middleware/auth');
+const auditLog = require('../middleware/audit');
 
 const router = express.Router();
 
@@ -248,7 +249,7 @@ router.put('/:id', [
 });
 
 // DELETE /api/farmers/:id
-router.delete('/:id', isAuthenticated, async (req, res) => {
+router.delete('/:id', isAuthenticated, auditLog('DELETE', 'Farmer'), async (req, res) => {
   try {
     const farmer = await Farmer.findById(req.params.id);
     

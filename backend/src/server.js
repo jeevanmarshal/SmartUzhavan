@@ -24,26 +24,20 @@ const server = http.createServer(app);
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  'https://smart-uzhavan.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:5173',
 ].filter(Boolean);
 
 const corsOriginValidator = (origin, callback) => {
   if (!origin) return callback(null, true);
   
-  const isExactMatch = allowedOrigins.includes(origin);
-  const isVercelDomain = /^https:\/\/smart-uzhavan(-[\w-]+)?\.vercel\.app$/.test(origin);
-  const isLocalhost = [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:5000',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173',
-  ].includes(origin);
+  const isAllowed = allowedOrigins.includes(origin) || 
+                   /^https:\/\/smart-uzhavan(-[\w-]+)?\.vercel\.app$/.test(origin) ||
+                   origin.includes('localhost') || 
+                   origin.includes('127.0.0.1');
 
-  if (isExactMatch || isVercelDomain || isLocalhost) {
+  if (isAllowed) {
     callback(null, true);
   } else {
     console.warn('[CORS] ❌ Denied origin:', origin);

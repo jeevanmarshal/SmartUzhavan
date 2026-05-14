@@ -30,7 +30,8 @@ const Login = ({ onLogin }) => {
           id: data.user._id || data.user.id,
           name: data.user.name || data.user.username || 'User',
           role: data.user.role.toLowerCase(),
-          email: data.user.email
+          email: data.user.email,
+          token: data.token
         });
       }
     } catch (err) {

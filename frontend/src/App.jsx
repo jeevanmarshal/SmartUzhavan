@@ -59,7 +59,7 @@ function App() {
       <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.2rem' }}>SmartUzhavan</span>
-          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>{user.name} ({user.role})</span>
+          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>{user.name} ({user.role}) {isAdmin ? "[ADMIN_TRUE]" : "[ADMIN_FALSE]"}</span>
         </div>
         <button 
           onClick={handleLogout}

@@ -32,12 +32,11 @@ const allowedOrigins = [
 const corsOriginValidator = (origin, callback) => {
   if (!origin) return callback(null, true);
   
-  const isAllowed = allowedOrigins.includes(origin) || 
-                   /^https:\/\/smart-uzhavan(-[\w-]+)?\.vercel\.app$/.test(origin) ||
-                   origin.includes('localhost') || 
-                   origin.includes('127.0.0.1');
+  const isVercel = origin.endsWith('.vercel.app') && origin.includes('smart-uzhavan');
+  const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1');
+  const isExplicit = allowedOrigins.includes(origin);
 
-  if (isAllowed) {
+  if (isExplicit || isVercel || isLocal) {
     callback(null, true);
   } else {
     console.warn('[CORS] ❌ Denied origin:', origin);

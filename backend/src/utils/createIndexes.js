@@ -18,8 +18,7 @@ async function createIndexes() {
   try {
     console.log('Creating MongoDB indexes...');
     
-    await User.collection.createIndex({ username: 1 }, { unique: true });
-    await User.collection.createIndex({ email: 1 }, { unique: true });
+
     
     try {
       await Farmer.collection.dropIndex('name_text');

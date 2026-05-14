@@ -32,8 +32,9 @@ async function createIndexes() {
     await AuditLog.collection.createIndex({ entity: 1, entityId: 1, timestamp: -1 });
     await ChangeHistory.collection.createIndex({ documentId: 1, version: -1 });
     
-    // Sync all indexes defined in Mongoose schemas for V5 models
+    // Sync all indexes defined in Mongoose schemas
     await Promise.all([
+      User.syncIndexes(),
       Driver.syncIndexes(),
       Worker.syncIndexes(),
       Expense.syncIndexes(),

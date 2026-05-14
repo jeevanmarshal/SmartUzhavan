@@ -109,7 +109,7 @@ export const apiService = {
   driverLogin: driverService.login,
   getDrivers: driverService.getAll,
   getFarmers: farmerService.getAll,
-  getDashboardSummary: () => api.get('/api/reports/summary'),
+  getDashboardSummary: () => api.get('/api/finance/summary'),
 };
 
 export default api;

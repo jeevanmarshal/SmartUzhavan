@@ -9,6 +9,7 @@ const Settings = () => {
   const [status, setStatus] = useState('');
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [driverPin, setDriverPin] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [drivers, setDrivers] = useState([]);
 
   useEffect(() => {
@@ -55,8 +56,37 @@ const Settings = () => {
       <div className="card" style={{ marginTop: '20px' }}>
         <h3>Security (பாதுகாப்பு)</h3>
         <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '20px' }}>
-          Admin password updates are handled via the user profile settings.
+          Update administrator password (நிர்வாகி கடவுச்சொல்லை மாற்றவும்).
         </p>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input 
+              type="password" 
+              placeholder="New Admin Password" 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              style={{ padding: '10px', borderRadius: '4px', border: '1px solid #CBD5E0', flex: 1 }}
+            />
+            <Button 
+              onClick={async () => {
+                if (!newPassword || newPassword.length < 4) {
+                  setStatus('Password must be at least 4 characters.');
+                  return;
+                }
+                try {
+                  await apiService.updateProfile({ password: newPassword });
+                  setStatus('நிர்வாகி கடவுச்சொல் மாற்றப்பட்டது (Password Updated)');
+                  setNewPassword('');
+                } catch (err) {
+                  setStatus('Failed: ' + err.message);
+                }
+              }}
+            >
+              Update Password
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ marginTop: '20px' }}>

@@ -73,6 +73,40 @@ router.get('/work-types', isAuthenticated, async (req, res) => {
   }
 });
 
+// @route   GET /api/settings/pricing
+router.get('/pricing', isAuthenticated, async (req, res) => {
+  try {
+    const settings = await Settings.findOne({ key: 'pricing' });
+    if (!settings) {
+      // Return default if not set
+      return sendResponse(res, 200, {
+        diesel: { pricePerLitre: 80 },
+        harvester: { tyre: 2500, track: 3500 },
+        rentals: {}
+      });
+    }
+    return sendResponse(res, 200, settings.value || settings);
+  } catch (error) {
+    console.error(error);
+    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+  }
+});
+
+// @route   PUT /api/settings/pricing
+router.put('/pricing', isAuthenticated, isSuperAdmin, auditLog('UPDATE', 'Settings'), async (req, res) => {
+  try {
+    const setting = await Settings.findOneAndUpdate(
+      { key: 'pricing' },
+      { $set: { value: req.body, lastUpdatedBy: req.user._id } },
+      { new: true, upsert: true }
+    );
+    return sendResponse(res, 200, setting.value);
+  } catch (error) {
+    console.error(error);
+    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+  }
+});
+
 // @route   PUT /api/settings/:key
 // @desc    Update setting or create if not exists
 router.put('/:key', isAuthenticated, isSuperAdmin, auditLog('UPDATE', 'Settings'), async (req, res) => {
@@ -80,7 +114,7 @@ router.put('/:key', isAuthenticated, isSuperAdmin, auditLog('UPDATE', 'Settings'
     const { key } = req.params;
     const updateData = {
       ...req.body,
-      lastUpdatedBy: req.session.userId
+      lastUpdatedBy: req.user?._id || req.session?.userId
     };
 
     const setting = await Settings.findOneAndUpdate(

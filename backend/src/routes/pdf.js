@@ -137,4 +137,64 @@ router.post('/statement', isAuthenticated, async (req, res) => {
   }
 });
 
+// @route   POST /api/pdf/reports/:type
+router.post('/reports/:type', isAuthenticated, async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { data, reportType } = req.body;
+    
+    const doc = new PDFDocument({ margin: 50 });
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Report_${type}_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    doc.pipe(res);
+    
+    // Header
+    doc.fontSize(20).text('SmartUzhavan Report', { align: 'center' });
+    doc.fontSize(14).text(type.replace(/-/g, ' ').toUpperCase(), { align: 'center' });
+    doc.moveDown();
+    
+    doc.fontSize(10).text(`Generated On: ${new Date().toLocaleString()}`, { align: 'right' });
+    doc.moveDown();
+    
+    // Table Header Logic
+    if (data && data.length > 0) {
+      const keys = Object.keys(data[0]);
+      
+      // Draw simple table
+      let y = doc.y;
+      keys.forEach((key, i) => {
+        doc.fontSize(10).text(key.toUpperCase(), 50 + (i * 120), y, { bold: true });
+      });
+      
+      doc.moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveDown(0.5);
+      
+      data.forEach(row => {
+        if (doc.y > 700) doc.addPage();
+        let currentY = doc.y;
+        keys.forEach((key, i) => {
+          let val = row[key];
+          if (typeof val === 'number' && (key.toLowerCase().includes('income') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('balance'))) {
+              val = `Rs. ${val.toFixed(2)}`;
+          }
+          doc.fontSize(9).text(String(val), 50 + (i * 120), currentY);
+        });
+        doc.moveDown();
+      });
+    } else {
+      doc.text('No data available for this report.');
+    }
+    
+    doc.end();
+  } catch (error) {
+    logger.error(`Report PDF generation error: ${error.message}`);
+    if (!res.headersSent) {
+      return sendError(res, 500, 'SERVER_ERROR', 'Failed to generate report PDF');
+    }
+  }
+});
+
 module.exports = router;

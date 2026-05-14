@@ -168,6 +168,7 @@ export const apiService = {
   login: authService.login,
   driverLogin: authService.driverLogin,
   farmerLogin: authService.farmerLogin,
+  updateProfile: (data) => api.put('/api/auth/profile', data),
   
   // Harvester
   getHarvesterJobs: harvesterService.getAll,

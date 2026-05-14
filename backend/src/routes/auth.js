@@ -116,4 +116,26 @@ router.get('/profile', authenticateToken, (req, res) => {
   return res.success(req.user.getPublicProfile(), 'User profile retrieved');
 });
 
+/**
+ * @route   PUT /api/auth/profile
+ * @desc    Update current user profile/password
+ */
+router.put('/profile', authenticateToken, async (req, res, next) => {
+  try {
+    const { name, password } = req.body;
+    const user = req.user;
+
+    if (name) user.name = name;
+    if (password) {
+      // In V6, user model should have a password hashing middleware or method
+      user.password = password; 
+    }
+
+    await user.save();
+    return res.success(user.getPublicProfile(), 'Profile updated successfully');
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

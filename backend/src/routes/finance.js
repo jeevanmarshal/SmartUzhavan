@@ -7,6 +7,44 @@ const auditLog = require('../middleware/audit');
 const router = express.Router();
 
 /**
+ * @route   GET /api/finance/summary
+ * @desc    Get financial summary (Income, Expense, Profit)
+ */
+router.get('/summary', authenticateToken, async (req, res, next) => {
+  try {
+    const HarvesterJob = require('../models/HarvesterJob');
+    
+    // 1. Get lending income (repayments)
+    const records = await FinanceLending.find({ isDeleted: false });
+    const lendingIncome = records.reduce((sum, r) => {
+        const paid = (r.payments || []).reduce((pSum, p) => pSum + p.amount, 0);
+        return sum + paid;
+    }, 0);
+
+    // 2. Get harvest income
+    const jobs = await HarvesterJob.find({ isDeleted: false });
+    const harvestIncome = jobs.reduce((sum, j) => sum + (j.totalAmount || 0), 0);
+
+    // 3. Get total expenses
+    const expenses = await Expense.find({ isDeleted: false });
+    const totalExpense = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    const totalIncome = lendingIncome + harvestIncome;
+
+    res.success({
+      totalIncome,
+      totalExpense,
+      netProfit: totalIncome - totalExpense,
+      lendingIncome,
+      harvestIncome,
+      lastUpdated: new Date()
+    }, 'Financial summary retrieved');
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * @route   GET /api/finance
  * @desc    Get all lending records (V3.1 Compatibility)
  */

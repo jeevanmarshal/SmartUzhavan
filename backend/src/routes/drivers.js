@@ -139,4 +139,20 @@ router.get('/:id/salary-history', authenticateToken, async (req, res, next) => {
   }
 });
 
+/**
+ * @route   GET /api/drivers/salaries/all
+ * @desc    Get all work logs for all drivers (Admin only)
+ */
+router.get('/salaries/all', authenticateToken, authorize('ADMIN', 'SUPER_ADMIN'), async (req, res, next) => {
+  try {
+    const logs = await DriverLog.find({ isDeleted: false })
+      .sort({ date: -1 })
+      .populate('driver_id', 'name village phone');
+
+    return res.success(logs, 'All driver salary logs retrieved');
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

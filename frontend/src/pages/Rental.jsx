@@ -17,7 +17,7 @@ const Rental = () => {
   const { data: rentalsData, syncData: setRentals } = useRealTime('Rental', []);
 
   const { execute: fetchFarmers } = useAPI(apiService.getFarmers.bind(apiService));
-  const { execute: fetchSettings } = useAPI(() => apiService.request('GET', '/settings'));
+  const { execute: fetchSettings } = useAPI(apiService.getSettings.bind(apiService));
   const { execute: fetchRentals } = useAPI(apiService.getRentals.bind(apiService));
 
   const [farmers, setFarmers] = useState([]);

@@ -123,11 +123,18 @@ export const reportService = {
   download: (id) => api.get(`/api/reports/${id}/download`, { responseType: 'blob' }),
 };
 
+export const rentalService = {
+  getAll: () => api.get('/api/rentals'),
+  create: (data) => api.post('/api/rentals', data),
+  update: (id, data) => api.put(`/api/rentals/${id}`, data),
+  delete: (id) => api.delete(`/api/rentals/${id}`),
+};
+
 // Legacy compatibility mapping for V3.1 components
 export const apiService = {
   // Auth
   login: authService.login,
-  driverLogin: driverService.login,
+  driverLogin: authService.driverLogin,
   request: (method, url, data) => api({ method, url, data }), // Generic request helper used in legacy
   
   // Harvester
@@ -157,6 +164,13 @@ export const apiService = {
   createFinanceRecord: financeService.create,
   updateFinanceRecord: financeService.update,
   deleteFinanceRecord: financeService.delete,
+  addFinancePayment: (id, payment) => api.post(`/api/finance/${id}/payments`, payment),
+
+  // Rentals
+  getRentals: rentalService.getAll,
+  createRental: rentalService.create,
+  updateRental: rentalService.update,
+  deleteRental: rentalService.delete,
 
   // Drivers
   getDrivers: driverService.getAll,

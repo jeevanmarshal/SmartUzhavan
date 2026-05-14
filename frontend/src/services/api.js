@@ -58,7 +58,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('user');
+      localStorage.removeItem('su_session');
       localStorage.removeItem('authToken');
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
@@ -82,6 +82,7 @@ export const authService = {
 
 export const expenseService = {
   getAll: () => api.get('/api/expenses'),
+  getById: (id) => api.get(`/api/expenses/${id}`),
   create: (data) => api.post('/api/expenses', data),
   update: (id, data) => api.put(`/api/expenses/${id}`, data),
   delete: (id) => api.delete(`/api/expenses/${id}`),
@@ -90,13 +91,21 @@ export const expenseService = {
 export const driverService = {
   getAll: () => api.get('/api/drivers'),
   getById: (id) => api.get(`/api/drivers/${id}`),
-  login: (phone, pin) => api.post('/api/drivers/login', { phone, pin }),
+  update: (id, data) => api.put(`/api/drivers/${id}`, data),
+  delete: (id) => api.delete(`/api/drivers/${id}`),
+  getSalaries: (id) => api.get(`/api/drivers/${id}/salary-history`),
+  getAllSalaries: () => api.get('/api/drivers/salaries/all'),
+  createSalary: (data) => api.post('/api/drivers/salaries', data),
+  updateSalary: (id, data) => api.put(`/api/drivers/salaries/${id}`, data),
+  deleteSalary: (id) => api.delete(`/api/drivers/salaries/${id}`),
 };
 
 export const farmerService = {
   getAll: () => api.get('/api/farmers'),
   getById: (id) => api.get(`/api/farmers/${id}`),
   create: (data) => api.post('/api/farmers', data),
+  update: (id, data) => api.put(`/api/farmers/${id}`, data),
+  delete: (id) => api.delete(`/api/farmers/${id}`),
 };
 
 export const harvesterService = {
@@ -114,13 +123,17 @@ export const financeService = {
   create: (data) => api.post('/api/finance', data),
   update: (id, data) => api.put(`/api/finance/${id}`, data),
   delete: (id) => api.delete(`/api/finance/${id}`),
+  addPayment: (id, payment) => api.post(`/api/finance/${id}/payments`, payment),
 };
 
-export const reportService = {
-  getSummary: () => api.get('/api/reports/summary'),
-  getAll: () => api.get('/api/reports'),
-  create: (data) => api.post('/api/reports', data),
-  download: (id) => api.get(`/api/reports/${id}/download`, { responseType: 'blob' }),
+export const workerService = {
+  getAll: () => api.get('/api/workers'),
+  create: (data) => api.post('/api/workers', data),
+  update: (id, data) => api.put(`/api/workers/${id}`, data),
+  delete: (id) => api.delete(`/api/workers/${id}`),
+  getAllRecords: () => api.get('/api/workers/records/all'),
+  createRecord: (data) => api.post('/api/workers/records', data),
+  deleteRecord: (id) => api.delete(`/api/workers/records/${id}`),
 };
 
 export const rentalService = {
@@ -130,12 +143,31 @@ export const rentalService = {
   delete: (id) => api.delete(`/api/rentals/${id}`),
 };
 
+export const ownFarmService = {
+  getAll: () => api.get('/api/own-farm-income'),
+  create: (data) => api.post('/api/own-farm-income', data),
+  update: (id, data) => api.put(`/api/own-farm-income/${id}`, data),
+  delete: (id) => api.delete(`/api/own-farm-income/${id}`),
+};
+
+export const reportService = {
+  getAll: () => api.get('/api/reports'),
+  create: (data) => api.post('/api/reports', data),
+  download: (id) => api.get(`/api/reports/${id}/download`, { responseType: 'blob' }),
+};
+
 // Legacy compatibility mapping for V3.1 components
 export const apiService = {
+  // Common
+  request: (method, url, data) => api({ method, url, data }),
+  getSettings: () => api.get('/api/settings'),
+  getPricingConfig: () => api.get('/api/settings/pricing'),
+  updatePricingConfig: (data) => api.put('/api/settings/pricing', data),
+
   // Auth
   login: authService.login,
   driverLogin: authService.driverLogin,
-  request: (method, url, data) => api({ method, url, data }), // Generic request helper used in legacy
+  farmerLogin: authService.farmerLogin,
   
   // Harvester
   getHarvesterJobs: harvesterService.getAll,
@@ -164,7 +196,7 @@ export const apiService = {
   createFinanceRecord: financeService.create,
   updateFinanceRecord: financeService.update,
   deleteFinanceRecord: financeService.delete,
-  addFinancePayment: (id, payment) => api.post(`/api/finance/${id}/payments`, payment),
+  addFinancePayment: financeService.addPayment,
 
   // Rentals
   getRentals: rentalService.getAll,
@@ -175,21 +207,33 @@ export const apiService = {
   // Drivers
   getDrivers: driverService.getAll,
   getDriver: driverService.getById,
-  updateDriver: (id, data) => api.put(`/api/drivers/${id}`, data),
-  getDriverSalaries: (id) => api.get(`/api/drivers/${id}/salary-history`),
-  getAllDriverSalaries: () => api.get('/api/drivers/salaries/all'),
-  createDriverSalary: (driverId, data) => api.post('/api/drivers/salaries', { ...data, driver_id: driverId }),
-  updateDriverSalary: (id, data) => api.put(`/api/drivers/salaries/${id}`, data),
-  deleteDriverSalary: (id) => api.delete(`/api/drivers/salaries/${id}`),
-  driverLogin: authService.driverLogin,
-  
+  updateDriver: driverService.update,
+  deleteDriver: driverService.delete,
+  getDriverSalaries: driverService.getSalaries,
+  getAllDriverSalaries: driverService.getAllSalaries,
+  createDriverSalary: (driverId, data) => driverService.createSalary({ ...data, driver_id: driverId }),
+  updateDriverSalary: driverService.updateSalary,
+  deleteDriverSalary: driverService.deleteSalary,
+
+  // Workers
+  getWorkers: workerService.getAll,
+  createWorker: workerService.create,
+  updateWorker: workerService.update,
+  deleteWorker: workerService.delete,
+  getAllWorkerRecords: workerService.getAllRecords,
+  createWorkerRecord: workerService.createRecord,
+  deleteWorkerRecord: workerService.deleteRecord,
+
+  // Own Farm
+  getOwnFarmIncome: ownFarmService.getAll,
+  createOwnFarmIncome: ownFarmService.create,
+  updateOwnFarmIncome: ownFarmService.update,
+  deleteOwnFarmIncome: ownFarmService.delete,
+
   // Reports
   getReports: reportService.getAll,
   createReport: reportService.create,
   downloadReport: reportService.download,
-  
-  // Settings
-  getSettings: () => api.get('/api/settings'),
 };
 
 export default api;

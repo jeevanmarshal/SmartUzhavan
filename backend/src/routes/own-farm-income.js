@@ -34,19 +34,28 @@ const sendError = (res, statusCode, code, message, details = {}) => {
 // @route   POST /api/own-farm-income
 router.post('/', isAuthenticated, auditLog('CREATE', 'OwnFarmIncome'), async (req, res) => {
   try {
-    const income = new OwnFarmIncome({
+    // Normalization Layer for V3.1 Frontend Mapping
+    const mappedData = {
       ...req.body,
-      createdBy: req.session.userId
-    });
-    // calculate total_amount based on type
-    if (income.type === 'paddy' || income.type === 'straw') {
+      type: req.body.type || req.body.incomeSource,
+      quantity: req.body.quantity || req.body.numberOfBags || req.body.numberOfBundles || 0,
+      price_per_unit: req.body.price_per_unit || req.body.pricePerBag || req.body.pricePerBundle || 0,
+      total_amount: req.body.total_amount || req.body.totalIncome || 0,
+      createdBy: req.user?._id || req.session?.userId
+    };
+
+    const income = new OwnFarmIncome(mappedData);
+    
+    // Fallback calculation
+    if (!income.total_amount && income.quantity && income.price_per_unit) {
         income.total_amount = income.quantity * income.price_per_unit;
     }
+    
     await income.save();
     return sendResponse(res, 201, income);
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    console.error(`Create own-farm error: ${error.message}`);
+    return sendError(res, 500, 'SERVER_ERROR', error.message || 'Server Error');
   }
 });
 

@@ -21,7 +21,7 @@ const Harvester = () => {
   const { data: logsData, syncData: setAllLogs } = useRealTime('DriverSalary', []); // DriverLog
 
   const { execute: fetchFarmers } = useAPI(apiService.getFarmers.bind(apiService));
-  const { execute: fetchSettings } = useAPI(() => apiService.request('GET', '/settings'));
+  const { execute: fetchSettings } = useAPI(apiService.getSettings.bind(apiService));
   const { execute: fetchJobs } = useAPI(apiService.getHarvesterJobs.bind(apiService));
   const { execute: fetchLogs } = useAPI(apiService.getAllDriverSalaries.bind(apiService));
 

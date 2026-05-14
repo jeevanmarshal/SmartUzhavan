@@ -22,7 +22,7 @@ const DriverEntry = ({ userId }) => {
   const { execute: fetchDrivers } = useAPI(apiService.getDrivers.bind(apiService));
   const { execute: fetchLogs } = useAPI(apiService.getAllDriverSalaries.bind(apiService));
   const { execute: fetchJobs } = useAPI(apiService.getHarvesterJobs.bind(apiService));
-  const { execute: fetchSettings } = useAPI(() => apiService.request('GET', '/settings'));
+  const { execute: fetchSettings } = useAPI(apiService.getSettings.bind(apiService));
 
   const [farmers, setFarmers] = useState([]);
   const [allLogs, setLogs] = useState([]);

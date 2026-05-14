@@ -155,4 +155,55 @@ router.get('/salaries/all', authenticateToken, authorize('ADMIN', 'SUPER_ADMIN')
   }
 });
 
+/**
+ * @route   POST /api/drivers/salaries
+ * @desc    Create a new driver work log
+ */
+router.post('/salaries', authenticateToken, auditLog('CREATE', 'DriverLog'), async (req, res, next) => {
+  try {
+    const log = new DriverLog({
+      ...req.body,
+      createdBy: req.user._id
+    });
+    await log.save();
+    return res.success(log, 'Driver log created', 201);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   PUT /api/drivers/salaries/:id
+ */
+router.put('/salaries/:id', authenticateToken, auditLog('UPDATE', 'DriverLog'), async (req, res, next) => {
+  try {
+    const log = await DriverLog.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!log) return res.status(404).error('Log not found', 404);
+    return res.success(log, 'Driver log updated');
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   DELETE /api/drivers/salaries/:id
+ */
+router.delete('/salaries/:id', authenticateToken, auditLog('DELETE', 'DriverLog'), async (req, res, next) => {
+  try {
+    const log = await DriverLog.findByIdAndUpdate(
+      req.params.id,
+      { isDeleted: true },
+      { new: true }
+    );
+    if (!log) return res.status(404).error('Log not found', 404);
+    return res.success(null, 'Driver log deleted');
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

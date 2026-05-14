@@ -175,8 +175,12 @@ export const apiService = {
   // Drivers
   getDrivers: driverService.getAll,
   getDriver: driverService.getById,
+  updateDriver: (id, data) => api.put(`/api/drivers/${id}`, data),
   getDriverSalaries: (id) => api.get(`/api/drivers/${id}/salary-history`),
   getAllDriverSalaries: () => api.get('/api/drivers/salaries/all'),
+  createDriverSalary: (driverId, data) => api.post('/api/drivers/salaries', { ...data, driver_id: driverId }),
+  updateDriverSalary: (id, data) => api.put(`/api/drivers/salaries/${id}`, data),
+  deleteDriverSalary: (id) => api.delete(`/api/drivers/salaries/${id}`),
   driverLogin: authService.driverLogin,
   
   // Reports

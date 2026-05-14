@@ -44,43 +44,65 @@ const Login = ({ onLogin }) => {
       background: 'linear-gradient(135deg, #1B3A6B 0%, #1A6B55 100%)',
       padding: '20px'
     }}>
-      <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '30px' }}>
-        <h1 style={{ textAlign: 'center', color: '#1B3A6B', marginBottom: '10px' }}>SmartUzhavan</h1>
-        <p style={{ textAlign: 'center', color: '#718096', marginBottom: '30px' }}>அங்கீகார நுழைவு (Secure Login)</p>
+      <div className="card" style={{ 
+        maxWidth: '420px', 
+        width: '100%', 
+        padding: '40px',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(255,255,255,0.1)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '35px' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '5px', letterSpacing: '-1px' }}>SmartUzhavan</h1>
+          <p style={{ color: '#718096', fontSize: '0.9rem', fontWeight: '500' }}>நிர்வாக நுழைவு (Executive Portal)</p>
+        </div>
 
         <form onSubmit={handleLogin}>
-          <InputField 
-            english="Email / Phone" tamil="மின்னஞ்சல் / தொலைபேசி"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            placeholder="Enter Email or Phone"
-            required
-            disabled={loading}
-          />
+          <div style={{ marginBottom: '20px' }}>
+            <InputField 
+              english="Email / Phone" tamil="மின்னஞ்சல் / தொலைபேசி"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="admin@smartuzhavan.com"
+              required
+              disabled={loading}
+            />
+          </div>
 
-          <InputField 
-            english="Password" tamil="கடவுச்சொல்"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="****"
-            required
-            disabled={loading}
-          />
+          <div style={{ marginBottom: '25px' }}>
+            <InputField 
+              english="Password" tamil="கடவுச்சொல்"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={loading}
+            />
+          </div>
 
           {error && (
-            <div style={{ color: '#C53030', fontSize: '0.85rem', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>
+            <div style={{ 
+              color: '#C53030', 
+              background: '#FFF5F5', 
+              padding: '12px', 
+              borderRadius: '8px', 
+              fontSize: '0.85rem', 
+              marginBottom: '20px', 
+              textAlign: 'center', 
+              fontWeight: '600',
+              border: '1px solid #FEB2B2'
+            }}>
               {error}
             </div>
           )}
 
-          <Button type="submit" fullWidth disabled={loading}>
-            {loading ? 'Logging in...' : 'Login (உள்நுழைக)'}
+          <Button type="submit" fullWidth disabled={loading} style={{ height: '50px', fontSize: '1rem', fontWeight: '700' }}>
+            {loading ? 'Authenticating...' : 'Login (உள்நுழைக)'}
           </Button>
         </form>
         
-        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.85rem', color: '#718096' }}>
-          நிர்வாகி அல்லது ஓட்டுநர் விவரங்களைப் பயன்படுத்தவும்
+        <div style={{ marginTop: '25px', textAlign: 'center', fontSize: '0.8rem', color: '#A0AEC0' }}>
+          v3.1 Production | © 2026 SmartUzhavan
         </div>
       </div>
     </div>

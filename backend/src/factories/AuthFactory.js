@@ -9,9 +9,13 @@ class AuthFactory {
       throw { statusCode: 400, message: 'Identifier and password required' };
     }
 
-    // Support login by email or phone
+    // Support login by email, phone, or username
     const user = await User.findOne({
-      $or: [{ email: identifier.toLowerCase() }, { phoneNumber: identifier }]
+      $or: [
+        { email: identifier.toLowerCase() },
+        { phoneNumber: identifier },
+        { username: identifier }
+      ]
     }).select('+password');
 
     if (!user) {

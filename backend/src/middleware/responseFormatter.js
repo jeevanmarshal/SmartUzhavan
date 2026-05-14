@@ -2,8 +2,8 @@ const APIResponse = require('./responseHandler');
 
 const responseFormatter = (req, res, next) => {
   // Add helper methods to res object
-  res.success = (data, message = 'Success', statusCode = 200) => {
-    return res.json(APIResponse.success(data, message, statusCode));
+  res.success = (data, message = 'Success', statusCode = 200, meta = {}) => {
+    return res.json(APIResponse.success(data, message, statusCode, meta));
   };
 
   res.fail = (data, message = 'Validation failed', statusCode = 400) => {

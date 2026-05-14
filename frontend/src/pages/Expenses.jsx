@@ -26,7 +26,7 @@ const Expenses = () => {
   const refreshData = async () => {
     try {
       const data = await fetchExpenses();
-      const eArray = data?.data || data || [];
+      const eArray = Array.isArray(data) ? data : (data?.expenses || data?.data || []);
       setExpenses(eArray);
       setExpensesDataRealTime(eArray);
     } catch (err) {

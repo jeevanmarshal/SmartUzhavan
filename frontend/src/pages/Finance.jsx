@@ -37,13 +37,14 @@ const Finance = () => {
         fetchLending(), fetchExpenses({ source: 'home_expense' })
       ]);
       
-      const lArray = lData?.data || lData || [];
+      const lArray = Array.isArray(lData) ? lData : (lData?.records || lData?.data || []);
       setLending(lArray);
       setLendingDataRealTime(lArray);
       
-      const eArray = (eData?.data || eData || []).filter(e => e.source === 'home_expense');
+      const eAll = Array.isArray(eData) ? eData : (eData?.expenses || eData?.data || []);
+      const eArray = eAll.filter(e => e.source === 'home_expense');
       setExpenses(eArray);
-      setExpensesDataRealTime(eData?.data || eData || []);
+      setExpensesDataRealTime(eAll);
     } catch (err) {
       console.error('Data sync failed:', err);
     }

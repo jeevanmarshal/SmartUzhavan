@@ -43,10 +43,10 @@ const Rental = () => {
       const [fData, sData, rData] = await Promise.all([
         fetchFarmers(), fetchSettings(), fetchRentals()
       ]);
-      setFarmers(fData?.data || fData || []);
-      setPricing(sData?.data?.pricing || null);
+      setFarmers(Array.isArray(fData) ? fData : (fData?.farmers || fData?.data || []));
+      setPricing(sData?.pricing || sData?.data?.pricing || null);
       
-      const rArray = rData?.data || rData || [];
+      const rArray = Array.isArray(rData) ? rData : (rData?.rentals || rData?.data || []);
       setLocalRentals(rArray);
       setRentals(rArray);
     } catch (err) {

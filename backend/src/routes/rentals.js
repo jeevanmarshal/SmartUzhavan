@@ -27,9 +27,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 
     const total = await Rental.countDocuments(query);
 
-    res.json({
-      success: true,
-      data: rentals,
+    return res.success(rentals, 'Rentals retrieved', 200, {
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(total / limit),
@@ -66,7 +64,7 @@ router.post('/', isAuthenticated, auditLog('CREATE', 'Rental'), async (req, res)
     });
 
     await rental.save();
-    res.status(201).json({ success: true, data: rental });
+    return res.success(rental, 'Rental created successfully', 201);
   } catch (error) {
     logger.error(`Create rental error: ${error.message}`);
     res.status(500).json({ success: false, error: { message: error.message || 'Server Error' } });
@@ -84,8 +82,8 @@ router.put('/:id', isAuthenticated, auditLog('UPDATE', 'Rental'), async (req, re
       { new: true }
     );
 
-    if (!rental) return res.status(404).json({ success: false, error: { message: 'Rental not found' } });
-    res.json({ success: true, data: rental });
+    if (!rental) return res.status(404).error('Rental not found', 404);
+    return res.success(rental, 'Rental updated');
   } catch (error) {
     logger.error(`Update rental error: ${error.message}`);
     res.status(500).json({ success: false, error: { message: 'Server Error' } });

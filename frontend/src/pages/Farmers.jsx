@@ -26,7 +26,7 @@ const Farmers = () => {
   const refreshData = async () => {
     try {
       const data = await fetchFarmers();
-      const fArray = data?.data || data || [];
+      const fArray = data?.farmers || (Array.isArray(data) ? data : []);
       setFarmers(fArray);
       setFarmersDataRealTime(fArray);
     } catch (err) {

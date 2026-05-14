@@ -54,14 +54,14 @@ const Harvester = () => {
       const [fData, sData, jData, lData] = await Promise.all([
         fetchFarmers(), fetchSettings(), fetchJobs(), fetchLogs()
       ]);
-      setFarmers(fData?.data || fData || []);
-      setPricing(sData?.data?.pricing || null);
+      setFarmers(Array.isArray(fData) ? fData : (fData?.farmers || fData?.data || []));
+      setPricing(sData?.pricing || sData?.data?.pricing || null);
       
-      const jobsArray = jData?.data || jData || [];
+      const jobsArray = Array.isArray(jData) ? jData : (jData?.jobs || jData?.data || []);
       setJobs(jobsArray);
       setAllJobs(jobsArray);
       
-      const logsArray = lData?.data || lData || [];
+      const logsArray = Array.isArray(lData) ? lData : (lData?.salaries || lData?.logs || lData?.data || []);
       setLogs(logsArray);
       setAllLogs(logsArray);
     } catch (err) {

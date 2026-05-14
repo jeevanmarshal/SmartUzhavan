@@ -46,10 +46,10 @@ const Workers = () => {
     const init = async () => {
       try {
         const w = await fetchWorkers();
-        setWorkers(w?.data || w || []);
+        setWorkers(w?.workers || (Array.isArray(w) ? w : []));
         
         const r = await fetchRecords();
-        setEntries(r?.data || r || []);
+        setEntries(r?.records || r?.data || (Array.isArray(r) ? r : []));
       } catch (err) {
         setError('Failed to load initial data');
       }
@@ -77,7 +77,7 @@ const Workers = () => {
       }
       
       const w = await fetchWorkers();
-      setWorkers(w?.data || w || []);
+      setWorkers(w?.workers || (Array.isArray(w) ? w : []));
       
       setShowAddWorker(false);
       setEditingWorker(null);
@@ -127,7 +127,7 @@ const Workers = () => {
       await Promise.all(promises);
       
       const r = await fetchRecords();
-      setEntries(r?.data || r || []);
+      setEntries(r?.records || r?.data || (Array.isArray(r) ? r : []));
       
       setShowAddForm(false);
       handleActionComplete(`${formData.selectedWorkerIds.length} வேலையாட்கள் சேமிக்கப்பட்டனர்`);

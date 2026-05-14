@@ -4,12 +4,13 @@
  */
 
 class APIResponse {
-  static success(data, message = 'Operation successful', statusCode = 200) {
+  static success(data, message = 'Operation successful', statusCode = 200, meta = {}) {
     return {
       status: 'success',
       code: statusCode,
       data: data,
       message: message,
+      meta: meta,
       timestamp: new Date().toISOString(),
     };
   }

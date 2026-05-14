@@ -29,14 +29,13 @@ router.get('/', authenticateToken, async (req, res, next) => {
     
     const total = await Farmer.countDocuments(query);
     
-    return res.success({
-      farmers,
+    return res.success(farmers, 'Farmers retrieved', 200, {
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
         totalRecords: total
       }
-    }, 'Farmers retrieved');
+    });
   } catch (error) {
     next(error);
   }

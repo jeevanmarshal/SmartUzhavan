@@ -1,1035 +1,1360 @@
-# ANTIGRAVITY EXECUTION PROMPT
-## SmartUzhavan V5 Implementation Instructions for AI Code Assistant
+# SmartUzhavan V6 Architecture Restructure - Implementation Prompt for Antigravity
+
+**Status:** READY FOR EXECUTION  
+**Target:** Complete MERN Stack Architectural Overhaul  
+**Timeline:** 4 Weeks  
+**Owner:** Senior Full-Stack Solutions Architect  
 
 ---
 
-## CRITICAL PREAMBLE
+## CONTEXT & OBJECTIVES
 
-You are now tasked with executing the **SmartUzhavan V5 Architecture & Implementation Plan**  document (provided in full).
+SmartUzhavan is experiencing critical architectural drift:
+- **Symptom 1:** API responses are inconsistent (sometimes arrays, sometimes objects) → Frontend crashes with "map is not a function"
+- **Symptom 2:** CORS blocking prevents Vercel ↔ Railway communication
+- **Symptom 3:** Auth is fragmented across User/Driver/Farmer models with duplicate logic
+- **Symptom 4:** Route definitions don't match API calls, causing 404s
+- **Symptom 5:** No unified data validation or response standards
 
-**DO NOT PROCEED without:**
-1. Reading the ENTIRE V5 Architecture document
-2. Understanding the current system state (mixed localStorage + partial backend)
-3. Understanding the target state (full API-driven, real-time, production-ready)
-4. Grasping the 9-week timeline and phase sequencing
-
-This prompt provides strict execution instructions. Your job is to implement precisely as specified, maintaining safety, quality, and production-readiness.
-
----
-
-## EXECUTION PRINCIPLES
-
-### 1. PHASE-DRIVEN EXECUTION
-- Execute strictly in order: Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5
-- Do NOT jump ahead
-- Complete phase deliverables before starting next phase
-- Report completion status after each phase
-
-### 2. ZERO BREAKING CHANGES
-- Maintain backward compatibility wherever possible
-- If breaking change is necessary, document clearly
-- Provide migration path for affected users
-- Test thoroughly before breaking changes
-
-### 3. PRODUCTION SAFETY
-- Every piece of code must be production-grade
-- Comprehensive error handling
-- Proper logging and monitoring hooks
-- Security best practices enforced
-- Performance tested before deployment
-
-### 4. TESTING FIRST
-- Write tests before/while implementing features
-- Unit tests for all business logic
-- Integration tests for all APIs
-- E2E tests for critical user flows
-- Mobile-responsive testing
-
-### 5. DOCUMENTATION AS CODE
-- Self-documenting code (clear variable names, function purposes)
-- JSDoc comments for complex functions
-- Architecture decisions documented
-- API changes documented
-- Migration guides for breaking changes
-
-### 6. CONTINUOUS VERIFICATION
-- After each file modification: verify no regressions
-- After each feature: verify calculations are correct
-- After each API: verify response format
-- After each UI change: verify Tamil text rendering
-- After all work: full system integration test
+**V6 is the cure:** A single source of truth architecture with unified responses, centralized auth, enforced schemas, and production-grade infrastructure.
 
 ---
 
-## PHASE 1: BACKEND FOUNDATION
-### Duration: Week 1-2
-### Objective: Create backend APIs for all V5 modules
+## DELIVERABLES REQUIRED (3 ONLY)
+
+You've already received:
+1. ✓ `V6_Architecture_Restructure_Plan.md` - Complete markdown plan
+2. ✓ `V6_Architecture_Restructure_Plan.pdf` - Professional PDF version
+3. ✓ This prompt file - Your step-by-step execution guide
+
+**Do NOT create any other files.** Only these three.
 
 ---
 
-## PHASE 1 EXECUTION INSTRUCTIONS
+## PHASE 1: FOUNDATION & ASSESSMENT (WEEK 1)
 
-### Task 1.1: Database Schema Expansion
-
-**File: `backend/models/Driver.js`**
-```
-REQUIREMENTS:
-- Create Driver model (was missing)
-- Fields: id, name, phone (unique), village, pin (unique), baseRate, active, timestamps, createdBy, isDeleted
-- Indexes: phone, village, active
-- Validation: phone format, pin format
-- Methods: toJSON() for API responses, hashPIN() for secure PIN storage
+### 1.1 Repository Audit
+```bash
+# TASK: Document current state
+- [ ] Clone latest SmartUzhavan repo
+- [ ] List all endpoints in /backend/routes/*.js
+- [ ] List all apiService calls in /frontend/src/services/
+- [ ] Audit all Mongoose models for validation gaps
+- [ ] Note all CORS-related code in server.js
+- [ ] Create ISSUES_REGISTRY.md documenting:
+      * Current 404 patterns
+      * Current response format inconsistencies
+      * Current auth entry points
+      * Current CORS failure scenarios
 ```
 
-**Deliverable:** Driver model working with validation
+### 1.2 Environment Setup
+```bash
+# Ensure these are installed:
+- Node.js 18.x or higher
+- MongoDB Atlas account with connection string
+- Redis server (for production sessions)
+- Docker Desktop (for containerization)
+- Postman or REST Client for API testing
 
-**Testing:**
+# Create /backend/.env.development:
+NODE_ENV=development
+PORT=5000
+MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/smartuzhavan
+FRONTEND_URL=http://localhost:5173
+JWT_SECRET=dev-secret-key-change-in-production
+JWT_EXPIRY=7d
+RATE_LIMIT_WINDOW=15
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Create /frontend/.env.development:
+VITE_API_URL=http://localhost:5000
+VITE_NODE_ENV=development
+```
+
+---
+
+## PHASE 2: RESPONSE STANDARDIZATION (WEEK 1-2)
+
+### 2.1 Create Response Wrapper Middleware
+
+**File:** `/backend/src/middleware/responseHandler.js`
+
 ```javascript
-// Verify these work:
-1. Can create driver with valid data
-2. Cannot create driver without required fields
-3. Phone number validation working
-4. PIN hashing working (bcrypt)
-5. Indexes created in MongoDB
+/**
+ * JSend-compliant Response Wrapper
+ * All API responses MUST follow this structure
+ */
+
+class APIResponse {
+  static success(data, message = 'Operation successful', statusCode = 200) {
+    return {
+      status: 'success',
+      code: statusCode,
+      data: data,
+      message: message,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  static fail(data, message = 'Validation failed', statusCode = 400) {
+    return {
+      status: 'fail',
+      code: statusCode,
+      data: data || null,
+      message: message,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  static error(message = 'Internal server error', statusCode = 500, data = null) {
+    return {
+      status: 'error',
+      code: statusCode,
+      data: data,
+      message: message,
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
+module.exports = APIResponse;
+```
+
+**File:** `/backend/src/middleware/responseFormatter.js`
+
+```javascript
+const APIResponse = require('./responseHandler');
+
+const responseFormatter = (req, res, next) => {
+  // Add helper methods to res object
+  res.success = (data, message = 'Success', statusCode = 200) => {
+    return res.json(APIResponse.success(data, message, statusCode));
+  };
+
+  res.fail = (data, message = 'Validation failed', statusCode = 400) => {
+    return res.json(APIResponse.fail(data, message, statusCode));
+  };
+
+  res.error = (message = 'Internal error', statusCode = 500, data = null) => {
+    return res.json(APIResponse.error(message, statusCode, data));
+  };
+
+  next();
+};
+
+module.exports = responseFormatter;
+```
+
+**File:** `/backend/src/middleware/errorHandler.js`
+
+```javascript
+const APIResponse = require('./responseHandler');
+
+const errorHandler = (err, req, res, next) => {
+  console.error('[ERROR]', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+  });
+
+  // Mongoose validation errors
+  if (err.name === 'ValidationError') {
+    const errors = Object.entries(err.errors).reduce((acc, [field, error]) => {
+      acc[field] = error.message;
+      return acc;
+    }, {});
+    return res.status(400).json(APIResponse.fail(errors, 'Validation failed', 400));
+  }
+
+  // Duplicate key errors (unique constraint)
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern)[0];
+    return res.status(409).json(
+      APIResponse.fail({ [field]: `${field} already exists` }, 'Duplicate entry', 409)
+    );
+  }
+
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return res.status(401).json(APIResponse.error('Invalid token', 401));
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json(APIResponse.error('Token expired', 401));
+  }
+
+  // Default error
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal server error';
+  return res.status(statusCode).json(APIResponse.error(message, statusCode));
+};
+
+module.exports = errorHandler;
+```
+
+### 2.2 Update server.js to Use Middleware
+
+```javascript
+// CRITICAL: Apply responseFormatter BEFORE routes, errorHandler AFTER routes
+
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+require('dotenv').config();
+
+const responseFormatter = require('./middleware/responseFormatter');
+const errorHandler = require('./middleware/errorHandler');
+
+const app = express();
+
+// Middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// RESPONSE FORMATTER MUST BE HERE (before routes)
+app.use(responseFormatter);
+
+// CORS (see Phase 6 for full config)
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+}));
+
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/drivers', require('./routes/drivers'));
+app.use('/api/farmers', require('./routes/farmers'));
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    status: 'error',
+    code: 404,
+    message: `Route ${req.method} ${req.path} not found`,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ERROR HANDLER MUST BE HERE (last)
+app.use(errorHandler);
+
+// Database
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✓ MongoDB connected'))
+  .catch(err => console.error('✗ MongoDB error:', err));
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`✓ Server running on port ${PORT}`);
+});
+
+module.exports = app;
+```
+
+### 2.3 Test Response Format
+```bash
+# TASK: Verify JSend format on all endpoints
+npm test -- tests/api.contract.test.js
+
+# Expected output:
+# ✓ All responses have status, code, data, message, timestamp
+# ✓ Success responses return data array or object
+# ✓ Fail responses return validation errors
+# ✓ Error responses have no data field
 ```
 
 ---
 
-**File: `backend/models/Worker.js`**
-```
-REQUIREMENTS:
-- Create Worker model (was missing)
-- Fields: id, name, phone, village, workTypes[], rates{}, active, timestamps, isDeleted
-- Work types: plowing, harvesting, transport (and more as needed)
-- Rates: per-work-type pricing
-- Indexes: on active, village
-```
+## PHASE 3: CENTRALIZED AUTHENTICATION (WEEK 2-3)
 
-**Deliverable:** Worker model fully functional
+### 3.1 Create Unified User Model
 
----
+**File:** `/backend/src/models/User.js`
 
-**File: `backend/models/Expense.js`**
-```
-REQUIREMENTS:
-- Create Expense model (was missing)
-- Type: enum [business, own_farm, home]
-- Category: string (later configurable)
-- Fields: amount, date, description, createdBy, timestamps, isDeleted
-- Validation: amount > 0, date valid, category required
-- Indexes: type, category, date, createdBy
-```
+```javascript
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-**Deliverable:** Expense model with proper categorization
+const userSchema = new mongoose.Schema(
+  {
+    // Core Identity
+    email: {
+      type: String,
+      required: [true, 'Email is required'],
+      unique: true,
+      lowercase: true,
+      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Invalid email'],
+    },
+    phoneNumber: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      unique: true,
+      match: [/^[0-9]{10}$/, 'Phone number must be 10 digits'],
+    },
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
+      minlength: [8, 'Password must be at least 8 characters'],
+      select: false,
+    },
 
----
+    // Profile
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    profileImage: { type: String, default: null },
+    address: {
+      street: String,
+      city: { type: String, default: 'Thanjavur' },
+      state: { type: String, default: 'Tamil Nadu' },
+      zipCode: String,
+      country: { type: String, default: 'India' },
+    },
 
-**File: `backend/models/HarvesterJob.js`**
-```
-REQUIREMENTS:
-- Create HarvesterJob model (was missing)
-- Fields: farmer_id, equipment, location, area, startDate, endDate
-- Status: enum [scheduled, in-progress, completed]
-- linkedLogIds: array of driver log IDs
-- Payments: array of {amount, date, method}
-- Validation: date ranges valid, area > 0
-- Indexes: farmer_id, status, startDate
-```
+    // RBAC
+    role: {
+      type: String,
+      enum: ['USER', 'DRIVER', 'FARMER', 'ADMIN'],
+      default: 'USER',
+      required: true,
+    },
 
-**Deliverable:** HarvesterJob model with linking validation
+    // Role-specific data (all in one place)
+    roleData: {
+      // Driver fields
+      driverLicense: String,
+      licenseExpiry: Date,
+      vehicleNumber: String,
+      vehicleType: { type: String, enum: ['AUTO', 'TRUCK', 'VAN'] },
+      
+      // Farmer fields
+      farmSize: Number,
+      cropTypes: [String],
+      bankAccount: {
+        accountNumber: String,
+        ifscCode: String,
+      },
+    },
 
----
+    // Status
+    isActive: { type: Boolean, default: true },
+    isVerified: { type: Boolean, default: false },
 
-**File: `backend/models/Rental.js`**
-```
-REQUIREMENTS:
-- Create Rental model (was missing)
-- Fields: farmer_id, equipment_id, startDate, endDate, hours, ratePerHour, totalAmount
-- Status: enum [scheduled, in-progress, completed]
-- Payment tracking
-- Validation: dates valid, hours > 0
-```
+    // Security
+    loginAttempts: { type: Number, default: 0, select: false },
+    lockUntil: { type: Date, default: null, select: false },
+    lastLogin: Date,
 
-**Deliverable:** Rental model functional
-
----
-
-**File: `backend/models/FinanceLending.js`**
-```
-REQUIREMENTS:
-- Create FinanceLending model (was missing)
-- Type: enum [loan, advance, credit]
-- Fields: farmer_id, amount, purpose, date, dueDate
-- Payments: array tracking
-- Status: enum [pending, partial, completed]
-- Interest calculation if applicable
-```
-
-**Deliverable:** Finance model with payment tracking
-
----
-
-**File: `backend/models/OwnFarmIncome.js`**
-```
-REQUIREMENTS:
-- Create OwnFarmIncome model (was missing)
-- Type: enum [paddy, straw]
-- Fields: quantity (bags/bundles), price_per_unit, total_amount, date
-- Calculation: quantity × price = amount
-- Validation: quantity > 0, price > 0
-```
-
-**Deliverable:** Income model with type-specific logic
-
----
-
-**File: `backend/models/DriverLog.js`**
-```
-REQUIREMENTS:
-- Create DriverLog model (was missing)
-- Fields: driver_id, date, sessions[], diesel{}, linkedJobId
-- Sessions: array of {startTime, endTime, duration}
-- Diesel: {mode: [none/litres/rupees], value, pricePerLitre}
-- Calculation: sum all session durations, calculate diesel cost
-- Status tracking: submitted, approved, paid
-```
-
-**Deliverable:** DriverLog with complex session tracking
-
----
-
-**File: `backend/models/WorkerRecord.js`**
-```
-REQUIREMENTS:
-- Create WorkerRecord model (was missing)
-- Fields: worker_id, date, work_type, units, rate_per_unit, total_amount
-- Work types: must match worker's available types
-- Calculation: units × rate = amount
-- Validation: work type in worker's approved list
-```
-
-**Deliverable:** WorkerRecord with type validation
-
----
-
-**File: `backend/models/Settings.js`**
-```
-REQUIREMENTS:
-- Create Settings model (was missing)
-- Schema: key (unique), value, type, category, lastUpdated
-- Types: prices, configs, categories, work_types
-- Categories: [driver_rates, worker_rates, expense_categories, etc]
-- Soft update capability (not restarting system)
-```
-
-**Deliverable:** Settings model for dynamic configuration
-
----
-
-### Task 1.2: Create API Routes
-
-**File: `backend/routes/drivers.js`** (Create new, ~300 LOC)
-```
-ENDPOINTS REQUIRED (8 total):
-POST   /api/drivers                  - Create driver
-GET    /api/drivers                  - List with pagination
-GET    /api/drivers/:id              - Get single driver
-PUT    /api/drivers/:id              - Update driver
-DELETE /api/drivers/:id              - Soft delete
-POST   /api/drivers/:id/change-pin   - Change PIN (admin only)
-GET    /api/drivers/:id/salary-history - Get salary records
-GET    /api/drivers/:id/pdf/salary   - Generate salary PDF
-
-VALIDATION:
-- All endpoints require authentication
-- Permission checks: admin only (except salary-history for own user)
-- Input validation on all POST/PUT
-- Proper error responses (400, 401, 403, 404, 500)
-
-RESPONSE FORMAT (standard):
-{
-  "success": true,
-  "data": {...},
-  "meta": {
-    "timestamp": ISO8601,
-    "requestId": "uuid",
-    "version": "v5.0"
+    // Timestamps
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
   },
-  "pagination": {page, limit, total, pages}
+  { timestamps: true }
+);
+
+// Hash password before save
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Instance methods
+userSchema.methods.comparePassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+userSchema.methods.generateAuthToken = function () {
+  const token = jwt.sign(
+    { id: this._id, email: this.email, role: this.role },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: process.env.JWT_EXPIRY || '7d' }
+  );
+  return token;
+};
+
+userSchema.methods.isAccountLocked = function () {
+  return this.lockUntil && this.lockUntil > Date.now();
+};
+
+userSchema.methods.incLoginAttempts = async function () {
+  if (this.lockUntil && this.lockUntil < Date.now()) {
+    return await this.updateOne({
+      $set: { loginAttempts: 1 },
+      $unset: { lockUntil: 1 },
+    });
+  }
+
+  const updates = { $inc: { loginAttempts: 1 } };
+  if (this.loginAttempts + 1 >= 5 && !this.isAccountLocked()) {
+    updates.$set = { lockUntil: new Date(Date.now() + 2 * 60 * 60 * 1000) };
+  }
+
+  return await this.updateOne(updates);
+};
+
+userSchema.methods.resetLoginAttempts = async function () {
+  return await this.updateOne({
+    $set: { loginAttempts: 0 },
+    $unset: { lockUntil: 1 },
+  });
+};
+
+userSchema.methods.getPublicProfile = function () {
+  return {
+    id: this._id,
+    firstName: this.firstName,
+    lastName: this.lastName,
+    email: this.email,
+    phoneNumber: this.phoneNumber,
+    role: this.role,
+    profileImage: this.profileImage,
+    address: this.address,
+    roleData: this.roleData,
+    isVerified: this.isVerified,
+    createdAt: this.createdAt,
+  };
+};
+
+// Statics
+userSchema.statics.findByEmail = function (email) {
+  return this.findOne({ email: email.toLowerCase() });
+};
+
+module.exports = mongoose.model('User', userSchema);
+```
+
+### 3.2 Create Auth Factory
+
+**File:** `/backend/src/factories/AuthFactory.js`
+
+```javascript
+const User = require('../models/User');
+
+class AuthFactory {
+  static async login(email, password) {
+    if (!email || !password) {
+      throw { statusCode: 400, message: 'Email and password required' };
+    }
+
+    const user = await User.findByEmail(email).select('+password');
+    if (!user) {
+      throw { statusCode: 401, message: 'Invalid email or password' };
+    }
+
+    if (user.isAccountLocked()) {
+      throw { statusCode: 429, message: 'Account locked. Try again in 2 hours.' };
+    }
+
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      await user.incLoginAttempts();
+      throw { statusCode: 401, message: 'Invalid email or password' };
+    }
+
+    await user.resetLoginAttempts();
+    user.lastLogin = new Date();
+    await user.save();
+
+    const token = user.generateAuthToken();
+    return { user: user.getPublicProfile(), token };
+  }
+
+  static async signup(userData) {
+    const { email, password, confirmPassword, firstName, lastName, phoneNumber, role = 'USER', roleData = {} } = userData;
+
+    if (!email || !password || !firstName || !lastName || !phoneNumber) {
+      throw { statusCode: 400, message: 'Missing required fields' };
+    }
+
+    if (password !== confirmPassword) {
+      throw { statusCode: 400, message: 'Passwords do not match' };
+    }
+
+    if (password.length < 8) {
+      throw { statusCode: 400, message: 'Password must be at least 8 characters' };
+    }
+
+    const existingUser = await User.findOne({
+      $or: [{ email: email.toLowerCase() }, { phoneNumber }],
+    });
+
+    if (existingUser) {
+      throw { statusCode: 409, message: 'User already exists' };
+    }
+
+    const validRoles = ['USER', 'DRIVER', 'FARMER'];
+    if (!validRoles.includes(role)) {
+      throw { statusCode: 400, message: `Invalid role. Must be: ${validRoles.join(', ')}` };
+    }
+
+    if (role === 'DRIVER' && !roleData.driverLicense) {
+      throw { statusCode: 400, message: 'Driver license required' };
+    }
+
+    if (role === 'FARMER' && !roleData.farmSize) {
+      throw { statusCode: 400, message: 'Farm size required' };
+    }
+
+    const user = new User({
+      email: email.toLowerCase(),
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+      role,
+      roleData,
+    });
+
+    await user.save();
+    const token = user.generateAuthToken();
+
+    return { user: user.getPublicProfile(), token };
+  }
+
+  static async verifyToken(token) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const user = await User.findById(decoded.id);
+      
+      if (!user || !user.isActive) {
+        throw { statusCode: 401, message: 'User not found or inactive' };
+      }
+
+      return user;
+    } catch (error) {
+      throw { statusCode: 401, message: 'Invalid or expired token' };
+    }
+  }
+
+  static async refreshToken(userId) {
+    const user = await User.findById(userId);
+    if (!user || !user.isActive) {
+      throw { statusCode: 401, message: 'User not found or inactive' };
+    }
+
+    const newToken = user.generateAuthToken();
+    return { token: newToken };
+  }
 }
+
+module.exports = AuthFactory;
 ```
 
-**Deliverable:** All driver endpoints working with tests
+### 3.3 Create Auth Middleware
+
+**File:** `/backend/src/middleware/auth.js`
+
+```javascript
+const AuthFactory = require('../factories/AuthFactory');
+
+const authenticateToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        status: 'error',
+        code: 401,
+        message: 'Access token required',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const user = await AuthFactory.verifyToken(token);
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      status: 'error',
+      code: 401,
+      message: error.message || 'Unauthorized',
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+const authorize = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        status: 'error',
+        code: 401,
+        message: 'User not authenticated',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        status: 'error',
+        code: 403,
+        message: `Access denied. Required role: ${allowedRoles.join(' or ')}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    next();
+  };
+};
+
+module.exports = { authenticateToken, authorize };
+```
+
+### 3.4 Create Auth Routes
+
+**File:** `/backend/src/routes/auth.js`
+
+```javascript
+const express = require('express');
+const AuthFactory = require('../factories/AuthFactory');
+const { authenticateToken } = require('../middleware/auth');
+
+const router = express.Router();
+
+router.post('/signup', async (req, res, next) => {
+  try {
+    const result = await AuthFactory.signup(req.body);
+    return res.status(201).success(result.user, 'Signup successful');
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/login', async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const result = await AuthFactory.login(email, password);
+
+    res.cookie('authToken', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.success(result.user, 'Login successful', 200);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/refresh', authenticateToken, async (req, res, next) => {
+  try {
+    const result = await AuthFactory.refreshToken(req.user._id);
+    return res.success({ token: result.token }, 'Token refreshed', 200);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/logout', (req, res) => {
+  res.clearCookie('authToken');
+  return res.success(null, 'Logged out successfully', 200);
+});
+
+router.get('/me', authenticateToken, (req, res) => {
+  return res.success(req.user.getPublicProfile(), 'User profile retrieved', 200);
+});
+
+module.exports = router;
+```
+
+### 3.5 Test Auth System
+```bash
+# TASK: Verify auth endpoints
+npm test -- tests/auth.test.js
+
+# Verify:
+# ✓ Signup creates user with role
+# ✓ Login returns JWT token
+# ✓ Token required for protected routes
+# ✓ Account locks after 5 failed attempts
+# ✓ Token refresh works
+```
 
 ---
 
-**File: `backend/routes/workers.js`** (Create new, ~250 LOC)
-```
-ENDPOINTS REQUIRED (8 total):
-POST   /api/workers                  - Create worker
-GET    /api/workers                  - List with filtering
-GET    /api/workers/:id              - Get worker detail
-PUT    /api/workers/:id              - Update worker
-DELETE /api/workers/:id              - Soft delete
+## PHASE 4: SCHEMA ENFORCEMENT (WEEK 2-3)
 
-POST   /api/worker-records           - Log work
-GET    /api/worker-records?filter... - List with filters
-PUT    /api/worker-records/:id       - Update work record
-DELETE /api/worker-records/:id       - Delete work record
+### 4.1 Create Validators Utility
 
-FILTERS REQUIRED:
-- Date range (fromDate, toDate)
-- Work type filtering
-- Worker filtering
-- Status filtering (submitted, approved, paid)
-```
+**File:** `/backend/src/utils/validators.js`
 
-**Deliverable:** All worker endpoints with filtering
-
----
-
-**File: `backend/routes/expenses.js`** (Create new, ~200 LOC)
-```
-ENDPOINTS REQUIRED (6 total):
-POST   /api/expenses                 - Create expense
-GET    /api/expenses?filter...       - List with filters
-PUT    /api/expenses/:id             - Update expense
-DELETE /api/expenses/:id             - Delete expense
-
-GET    /api/expenses/summary         - Category summary
-GET    /api/expenses/report          - Export report
-
-FILTERS:
-- Type (business, own_farm, home)
-- Category
-- Date range
-- Amount range
-
-AGGREGATIONS:
-- Sum by category
-- Sum by type
-- Trend over time
-```
-
-**Deliverable:** Expense endpoints with aggregations
-
----
-
-**File: `backend/routes/harvester.js`** (Create new, ~250 LOC)
-```
-ENDPOINTS REQUIRED (8 total):
-POST   /api/harvester-jobs           - Create job
-GET    /api/harvester-jobs           - List jobs
-GET    /api/harvester-jobs/:id       - Get job detail
-PUT    /api/harvester-jobs/:id       - Update job
-DELETE /api/harvester-jobs/:id       - Delete job
-
-POST   /api/harvester-jobs/:id/link-logs - Link driver logs
-GET    /api/harvester-jobs/:id/pdf   - Generate job report
-
-VALIDATION:
-- Linking: validate logs exist and belong to correct driver
-- Date ranges: validate start < end
-- Payment tracking: validate amounts, track partial payments
-```
-
-**Deliverable:** Harvester endpoints with job management
-
----
-
-**File: `backend/routes/finance.js`** (Create new, ~250 LOC)
-```
-ENDPOINTS REQUIRED (7 total):
-POST   /api/finance-records          - Create loan/lending
-GET    /api/finance-records          - List with status filter
-GET    /api/finance-records/:id      - Get loan detail
-PUT    /api/finance-records/:id      - Update loan
-
-POST   /api/finance-records/:id/payment - Record payment
-DELETE /api/finance-records/:id      - Delete loan
-
-GET    /api/finance-records/summary  - Finance summary
-GET    /api/finance-records/overdue  - Overdue payments
-
-CALCULATIONS:
-- Total due: principal + interest (if applicable)
-- Amount paid: sum of payments
-- Balance: due - paid
-- Status: pending/partial/completed
-```
-
-**Deliverable:** Finance endpoints with payment tracking
-
----
-
-**File: `backend/routes/own-farm-income.js`** (Create new, ~200 LOC)
-```
-ENDPOINTS REQUIRED (6 total):
-POST   /api/own-farm-income          - Create income entry
-GET    /api/own-farm-income?type=... - List by type (paddy/straw)
-PUT    /api/own-farm-income/:id      - Update entry
-DELETE /api/own-farm-income/:id      - Delete entry
-
-GET    /api/own-farm-income/summary  - Income summary
-
-CALCULATIONS (CRITICAL):
-- Type: paddy OR straw (not both in single entry)
-- Paddy: bags × price_per_bag = amount
-- Straw: bundles × price_per_bundle = amount
-- Summary: total paddy, total straw, combined total
-
-VALIDATION:
-- Type must be specified
-- Quantity > 0
-- Price > 0
-- Cannot have both paddy and straw in one entry
-```
-
-**Deliverable:** Income endpoints with type-specific logic
-
----
-
-**File: `backend/routes/settings.js`** (Create new, ~200 LOC)
-```
-ENDPOINTS REQUIRED (4 total):
-GET    /api/settings                 - Get all settings
-PUT    /api/settings/:key            - Update setting
-
-GET    /api/settings/prices          - Get pricing config
-GET    /api/settings/categories      - Get expense categories
-
-SETTINGS STRUCTURE:
-{
-  key: "expense_categories",
-  value: {
-    business: ["diesel", "maintenance", "labor", ...],
-    own_farm: ["seeds", "fertilizer", ...],
-    home: ["food", "utilities", ...]
+```javascript
+const validators = {
+  isValidEmail: (email) => {
+    const re = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    return re.test(email);
   },
-  type: "categories",
-  lastUpdated: ISO8601
-}
 
-REQUIRED SETTINGS:
-1. Driver base rates
-2. Worker rates per work type
-3. Expense categories (business, own_farm, home)
-4. Worker work types available
-5. Machine types
-6. Seasons configuration
+  isValidPhone: (phone) => {
+    const re = /^[0-9]{10}$/;
+    return re.test(phone);
+  },
+
+  isStrongPassword: (password) => {
+    return (
+      password.length >= 8 &&
+      /[A-Z]/.test(password) &&
+      /[a-z]/.test(password) &&
+      /[0-9]/.test(password) &&
+      /[!@#$%^&*]/.test(password)
+    );
+  },
+
+  isValidLicense: (license) => {
+    const re = /^[A-Z]{2}[0-9]{13}$/;
+    return re.test(license);
+  },
+
+  isValidFarmSize: (size) => {
+    return size > 0 && size <= 10000;
+  },
+};
+
+module.exports = validators;
 ```
 
-**Deliverable:** Settings API with all required configs
+### 4.2 Update All Models
+```bash
+# TASK: Audit and update models
+- [ ] Ensure ALL required fields have [true, 'message']
+- [ ] Ensure ALL optional fields have default values
+- [ ] Ensure enums list ALL valid options
+- [ ] Add timestamps to all schemas
+- [ ] Test with invalid data (should fail validation)
+```
 
 ---
 
-### Task 1.3: Database Indexes & Performance
+## PHASE 5: API CONTRACT SYNCHRONIZATION (WEEK 3)
 
-**File: `backend/utils/createIndexes.js`** (Update/expand)
-```
-CREATE INDEXES (critical for performance):
+### 5.1 Create API Registry
 
-Drivers:
-- db.drivers.createIndex({ phone: 1 }, { unique: true })
-- db.drivers.createIndex({ village: 1 })
-- db.drivers.createIndex({ active: 1 })
+**File:** `/backend/src/constants/apiRegistry.js`
 
-DriverLogs:
-- db.driver_logs.createIndex({ driver_id: 1, date: -1 })
-- db.driver_logs.createIndex({ date: 1 })
-
-Workers:
-- db.workers.createIndex({ village: 1 })
-- db.workers.createIndex({ active: 1 })
-
-WorkerRecords:
-- db.worker_records.createIndex({ worker_id: 1, date: -1 })
-- db.worker_records.createIndex({ work_type: 1 })
-
-Expenses:
-- db.expenses.createIndex({ type: 1, date: -1 })
-- db.expenses.createIndex({ category: 1 })
-- db.expenses.createIndex({ createdBy: 1 })
-
-HarvesterJobs:
-- db.harvester_jobs.createIndex({ farmer_id: 1 })
-- db.harvester_jobs.createIndex({ status: 1 })
-
-Finance:
-- db.finance_records.createIndex({ farmer_id: 1, dueDate: 1 })
-- db.finance_records.createIndex({ status: 1 })
-
-OwnFarmIncome:
-- db.own_farm_income.createIndex({ type: 1, date: -1 })
-```
-
-**Deliverable:** All indexes created, query performance verified
-
----
-
-### Task 1.4: API Testing & Documentation
-
-**File: `backend/__tests__/api/drivers.test.js`** (Create new)
-```
-TEST CASES (must pass):
-
-1. Create Driver
-   - Valid data: should create
-   - Missing name: should reject
-   - Duplicate phone: should reject
-   - PIN hashing: should be hashed, not plaintext
-
-2. List Drivers
-   - Default pagination works (page 1, limit 20)
-   - Filtering by village works
-   - Filtering by active status works
-   - Returns proper pagination metadata
-
-3. Update Driver
-   - Can update baseRate
-   - Cannot duplicate phone
-   - Timestamp updates
-   - Cannot update to empty name
-
-4. Delete Driver
-   - Soft delete (isDeleted flag)
-   - Still visible to admin with filter
-   - Hidden from normal queries
-
-5. Change PIN
-   - Admin can change PIN
-   - PIN gets hashed
-   - User cannot change own PIN (security)
-   - Returns success response
-```
-
-**Deliverable:** All tests passing, >90% code coverage
-
----
-
-**File: `BACKEND_APIS.md`** (Create documentation)
-```
-Document format:
-- Each endpoint with method, path, description
-- Required authentication
-- Request body example
-- Response example (success & error)
-- Validation rules
-- Error codes possible
-
-Generate from comments in code automatically if possible
-Or manually create comprehensive API documentation
-```
-
-**Deliverable:** Complete API documentation
-
----
-
-### PHASE 1 COMPLETION CHECKLIST
-
-- [ ] All 10 models created with validation
-- [ ] All 35+ API endpoints implemented
-- [ ] All endpoints tested and working
-- [ ] Database indexes created and optimized
-- [ ] Standard response format implemented
-- [ ] Error handling comprehensive
-- [ ] API documentation complete
-- [ ] Postman collection exported
-- [ ] Tests passing (>85% coverage)
-- [ ] No console errors or warnings
-- [ ] Proper logging in place
-- [ ] Performance benchmarks acceptable
-
-**Phase 1 Completion**: Report exact status, any blockers, expected resolution time
-
----
-
-## PHASE 2: FRONTEND SERVICE LAYER
-### Duration: Week 3
-### Objective: Replace localStorage with API abstraction, add Socket.io
-
----
-
-## PHASE 2 EXECUTION INSTRUCTIONS
-
-### Task 2.1: Create Service Layer Abstraction
-
-**File: `frontend/src/services/api.js`** (Create new, ~200 LOC)
-```
-CLASS: APIService
-
-REQUIREMENTS:
-- Base URL from env var REACT_APP_API_URL
-- Authentication token management
-- Request/response standardization
-- Error handling with fallback to offline cache
-- Caching strategy (optional)
-
-METHODS (must implement):
-- request(endpoint, options) - base method
-- getDrivers(page, limit, filters)
-- createDriver(data)
-- updateDriver(id, data)
-- deleteDriver(id)
-- ... similar for workers, expenses, harvester, finance, etc.
-
-ERROR HANDLING:
-- Network error → fallback to offline cache
-- API error (4xx, 5xx) → throw with error code
-- Auth error (401) → redirect to login
-- Rate limit (429) → implement exponential backoff
-
-CACHING:
-- Keep last response in memory
-- Update cache after successful mutations
-- Use cache as fallback if network fails
-```
-
-**Testing:**
 ```javascript
-// Must pass:
-1. Can fetch drivers list
-2. Can create driver (POST)
-3. Can update driver (PUT)
-4. Can delete driver (DELETE)
-5. Network error falls back to cache
-6. Response format verified
-7. Pagination working
-8. Filters working
+const apiRegistry = {
+  auth: {
+    signup: { method: 'POST', path: '/api/auth/signup', auth: false },
+    login: { method: 'POST', path: '/api/auth/login', auth: false },
+    logout: { method: 'POST', path: '/api/auth/logout', auth: true },
+    refresh: { method: 'POST', path: '/api/auth/refresh', auth: true },
+    me: { method: 'GET', path: '/api/auth/me', auth: true },
+  },
+  
+  users: {
+    getById: { method: 'GET', path: '/api/users/:id', auth: true },
+    update: { method: 'PUT', path: '/api/users/:id', auth: true },
+    delete: { method: 'DELETE', path: '/api/users/:id', auth: true },
+  },
+  
+  drivers: {
+    getAll: { method: 'GET', path: '/api/drivers', auth: false },
+    getById: { method: 'GET', path: '/api/drivers/:id', auth: false },
+    update: { method: 'PUT', path: '/api/drivers/:id', auth: true },
+  },
+  
+  farmers: {
+    getAll: { method: 'GET', path: '/api/farmers', auth: false },
+    getById: { method: 'GET', path: '/api/farmers/:id', auth: false },
+    update: { method: 'PUT', path: '/api/farmers/:id', auth: true },
+  },
+
+  health: { method: 'GET', path: '/api/health', auth: false },
+};
+
+module.exports = apiRegistry;
 ```
 
-**Deliverable:** APIService fully functional and tested
+### 5.2 Update Frontend API Service
 
----
+**File:** `/frontend/src/services/apiService.js`
 
-**File: `frontend/src/services/socketService.js`** (Create new, ~150 LOC)
-```
-CLASS: SocketService
-
-REQUIREMENTS:
-- Connect to backend Socket.io on init
-- Authenticate via session
-- Reconnection logic (exponential backoff)
-- Event subscription/unsubscription
-- Event emission
-
-METHODS (must implement):
-- connect()
-- disconnect()
-- subscribe(event, callback)
-- unsubscribe(event, callback)
-- emit(event, data)
-- isConnected() - boolean
-
-RECONNECTION STRATEGY:
-- First reconnect: 1 second
-- Second: 2 seconds
-- Third: 4 seconds
-- Maximum: 10 seconds
-- Max attempts: 5 (then offline mode)
-
-OFFLINE DETECTION:
-- Emit 'connection:offline' when disconnect
-- Emit 'connection:online' when reconnect
-- Queue events while offline
-
-EVENT CATEGORIES (must support):
-- Entity events: driver:created, driver:updated, driver:deleted, etc.
-- Transaction events: payment:recorded, advance:given, etc.
-- Real-time events: activity:new, report:ready, etc.
-```
-
-**Testing:**
 ```javascript
-// Must pass:
-1. Can connect to Socket.io
-2. Can subscribe to event
-3. Can emit event
-4. Reconnection works
-5. Queue works while offline
-6. Unsubscribe works
+/**
+ * Unified API Service
+ * Handles JSend response format automatically
+ * Manages auth tokens, refreshes, and error handling
+ */
+
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  withCredentials: true,
+});
+
+// Request interceptor: Add token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor: Handle JSend format
+apiClient.interceptors.response.use(
+  (response) => {
+    const data = response.data;
+
+    // Success: return just the data (frontend expects data, not wrapper)
+    if (data.status === 'success') {
+      return data.data;
+    }
+
+    // Fail: validation error with details
+    if (data.status === 'fail') {
+      const error = new Error(data.message);
+      error.code = data.code;
+      error.data = data.data;
+      return Promise.reject(error);
+    }
+
+    // Error: server error
+    if (data.status === 'error') {
+      const error = new Error(data.message);
+      error.code = data.code;
+      return Promise.reject(error);
+    }
+
+    return response.data;
+  },
+  (error) => {
+    // Auto-redirect on 401
+    if (error.response?.status === 401) {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Auth API
+export const authService = {
+  signup: (userData) => apiClient.post('/api/auth/signup', userData),
+  login: (email, password) => apiClient.post('/api/auth/login', { email, password }),
+  logout: () => apiClient.post('/api/auth/logout'),
+  refresh: () => apiClient.post('/api/auth/refresh'),
+  getMe: () => apiClient.get('/api/auth/me'),
+};
+
+// User API
+export const userService = {
+  getById: (userId) => apiClient.get(`/api/users/${userId}`),
+  update: (userId, data) => apiClient.put(`/api/users/${userId}`, data),
+  delete: (userId) => apiClient.delete(`/api/users/${userId}`),
+};
+
+// Driver API
+export const driverService = {
+  getAll: (filters = {}) => apiClient.get('/api/drivers', { params: filters }),
+  getById: (id) => apiClient.get(`/api/drivers/${id}`),
+  update: (id, data) => apiClient.put(`/api/drivers/${id}`, data),
+};
+
+// Farmer API
+export const farmerService = {
+  getAll: (filters = {}) => apiClient.get('/api/farmers', { params: filters }),
+  getById: (id) => apiClient.get(`/api/farmers/${id}`),
+  update: (id, data) => apiClient.put(`/api/farmers/${id}`, data),
+};
+
+// Health check
+export const healthService = {
+  check: () => apiClient.get('/api/health'),
+};
+
+export default apiClient;
 ```
 
-**Deliverable:** SocketService fully functional
+### 5.3 Test API Contracts
+```bash
+# TASK: Verify frontend-backend alignment
+npm test -- tests/api.contract.test.js
+
+# Verify:
+# ✓ All endpoints return JSend format
+# ✓ Auth endpoints return token
+# ✓ Protected endpoints reject without token
+# ✓ apiService correctly unwraps JSend data
+```
 
 ---
 
-### Task 2.2: Create Custom Hooks
+## PHASE 6: INFRASTRUCTURE HARDENING (WEEK 3-4)
 
-**File: `frontend/src/hooks/useAPI.js`** (Create new, ~60 LOC)
-```
-HOOK: useAPI(endpoint, options)
+### 6.1 Complete CORS Configuration
 
-RETURNS: {data, loading, error}
+**Update server.js:**
 
-REQUIREMENTS:
-- Fetch data on mount
-- Handle loading state
-- Handle error state
-- Fallback to offline cache on error
-- Re-fetch on endpoint change
-
-USAGE:
-const { data: drivers, loading, error } = useAPI('/api/drivers');
-
-if (loading) return <div>Loading...</div>;
-if (error) return <div>Error: {error}</div>;
-return <list items={data} />;
-```
-
-**Deliverable:** Hook working with all use cases
-
----
-
-**File: `frontend/src/hooks/useRealTime.js`** (Create new, ~40 LOC)
-```
-HOOK: useRealTime(event, initialData)
-
-RETURNS: data
-
-REQUIREMENTS:
-- Subscribe to Socket.io event on mount
-- Update state when event fires
-- Unsubscribe on unmount
-- Handle initial data
-
-USAGE:
-const newDrivers = useRealTime('driver:created', []);
-
-// Automatically updates when new drivers created
-```
-
-**Deliverable:** Hook working for live updates
-
----
-
-**File: `frontend/src/hooks/useOfflineMode.js`** (Create new, ~50 LOC)
-```
-HOOK: useOfflineMode()
-
-RETURNS: {isOnline, queue, syncStatus}
-
-REQUIREMENTS:
-- Detect online/offline status
-- Manage offline change queue
-- Provide sync mechanism
-- Track sync progress
-
-USAGE:
-const { isOnline, syncStatus } = useOfflineMode();
-
-if (!isOnline) {
-  return <div>Offline - changes queued</div>;
-}
-```
-
-**Deliverable:** Hook managing offline state
-
----
-
-### Task 2.3: Create Context & State Management
-
-**File: `frontend/src/context/DataContext.jsx`** (Create new, ~80 LOC)
-```
-CONTEXT: DataContext
-
-PROVIDES (via useContext):
-- drivers: [] 
-- setDrivers: function
-- workers: []
-- setWorkers: function
-- expenses: []
-- setExpenses: function
-- harvesterJobs: []
-- setHarvesterJobs: function
-- ... all entity types
-
-WRAPPED BY: DataProvider component
-
-USAGE IN COMPONENTS:
-const { drivers, setDrivers } = useContext(DataContext);
-
-INITIALIZATION:
-- Fetch all data on provider mount
-- Subscribe to Socket.io events
-- Update context when events fire
-```
-
-**Deliverable:** Context fully functional across app
-
----
-
-### Task 2.4: Refactor Dashboard
-
-**File: `frontend/src/pages/Dashboard.jsx`** (Refactor, ~100 LOC)
-```
-REQUIREMENTS:
-- Remove localStorage initialization
-- Use APIService to fetch data
-- Use DataContext for shared state
-- Implement Socket.io listeners for real-time updates
-- Show connection status
-- Show sync status if offline
-
-METRICS TO SHOW:
-- Total drivers
-- Total pending payments
-- Total expenses (this month)
-- Active jobs
-
-REAL-TIME:
-- Update when new driver added
-- Update when payment recorded
-- Update totals every 30 seconds from backend
-
-OFFLINE MODE:
-- Show cached data
-- Show "Offline" indicator
-- Queue manual refresh
-```
-
-**Testing:**
 ```javascript
-// Must pass:
-1. Dashboard loads from API
-2. Metrics calculate correctly
-3. Real-time updates on driver:created
-4. Offline shows cached data with indicator
-5. Reconnect syncs and updates
+const cors = require('cors');
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'https://smartuzhavan.vercel.app',
+      'https://www.smartuzhavan.vercel.app',
+    ];
+
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Number'],
+  maxAge: 86400,
+  preflightContinue: false,
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+
+// CORS error handler
+app.use((err, req, res, next) => {
+  if (err.message === 'CORS not allowed') {
+    return res.status(403).json({
+      status: 'error',
+      code: 403,
+      message: 'CORS policy violation',
+      timestamp: new Date().toISOString(),
+    });
+  }
+  next(err);
+});
 ```
 
-**Deliverable:** Dashboard fully integrated
+### 6.2 Security Headers
+
+**File:** `/backend/src/middleware/securityHeaders.js`
+
+```javascript
+const securityHeaders = (req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
+  );
+  res.setHeader('Expect-CT', 'max-age=86400, enforce');
+  
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+
+  res.removeHeader('X-Powered-By');
+  next();
+};
+
+module.exports = securityHeaders;
+```
+
+Add to server.js:
+```javascript
+const securityHeaders = require('./middleware/securityHeaders');
+app.use(securityHeaders);
+```
+
+### 6.3 Rate Limiting
+
+**File:** `/backend/src/middleware/rateLimiter.js`
+
+```javascript
+const rateLimit = require('express-rate-limit');
+
+const limiter = rateLimit({
+  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
+  max: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
+  message: 'Too many requests from this IP',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/api/health',
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many login attempts',
+});
+
+module.exports = { limiter, authLimiter };
+```
+
+Add to server.js:
+```javascript
+const { limiter, authLimiter } = require('./middleware/rateLimiter');
+app.use(limiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/signup', authLimiter);
+```
+
+### 6.4 Environment Configuration
+
+**Create `/backend/.env.production`:**
+
+```bash
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/smartuzhavan
+FRONTEND_URL=https://smartuzhavan.vercel.app
+JWT_SECRET=your-super-secure-jwt-secret-key-here-change-this
+JWT_EXPIRY=7d
+REDIS_URL=redis://:password@redis.railway.app:PORT
+COOKIE_DOMAIN=smartuzhavan.com
+SESSION_SECRET=your-super-secure-session-secret-key-here
+RATE_LIMIT_WINDOW=15
+RATE_LIMIT_MAX_REQUESTS=100
+LOG_LEVEL=info
+```
+
+**Create `/frontend/.env.production`:**
+
+```bash
+VITE_API_URL=https://api.smartuzhavan.com
+VITE_NODE_ENV=production
+```
 
 ---
 
-### Task 2.5: Remove LocalStorage from App.jsx
+## PHASE 7: COMPREHENSIVE TESTING (WEEK 4)
 
-**File: `frontend/src/App.jsx`** (Refactor, ~120 LOC)
+### 7.1 Unit Tests
+
+**File:** `/backend/tests/auth.test.js`
+
+```javascript
+const request = require('supertest');
+const app = require('../src/server');
+const User = require('../src/models/User');
+
+describe('Auth Tests', () => {
+  beforeEach(async () => {
+    await User.deleteMany({});
+  });
+
+  describe('POST /api/auth/signup', () => {
+    it('should create new user', async () => {
+      const res = await request(app)
+        .post('/api/auth/signup')
+        .send({
+          email: 'user@test.com',
+          password: 'Test@1234',
+          confirmPassword: 'Test@1234',
+          firstName: 'John',
+          lastName: 'Doe',
+          phoneNumber: '9876543210',
+          role: 'USER',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('success');
+      expect(res.body.token).toBeDefined();
+    });
+
+    it('should reject duplicate email', async () => {
+      await request(app).post('/api/auth/signup').send({
+        email: 'user@test.com',
+        password: 'Test@1234',
+        confirmPassword: 'Test@1234',
+        firstName: 'John',
+        lastName: 'Doe',
+        phoneNumber: '9876543210',
+      });
+
+      const res = await request(app)
+        .post('/api/auth/signup')
+        .send({
+          email: 'user@test.com',
+          password: 'Test@1234',
+          confirmPassword: 'Test@1234',
+          firstName: 'Jane',
+          lastName: 'Doe',
+          phoneNumber: '9876543211',
+        });
+
+      expect(res.status).toBe(409);
+      expect(res.body.status).toBe('fail');
+    });
+  });
+
+  describe('POST /api/auth/login', () => {
+    beforeEach(async () => {
+      await request(app).post('/api/auth/signup').send({
+        email: 'user@test.com',
+        password: 'Test@1234',
+        confirmPassword: 'Test@1234',
+        firstName: 'John',
+        lastName: 'Doe',
+        phoneNumber: '9876543210',
+      });
+    });
+
+    it('should login successfully', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'user@test.com', password: 'Test@1234' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.token).toBeDefined();
+    });
+
+    it('should reject wrong password', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'user@test.com', password: 'WrongPassword' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.status).toBe('error');
+    });
+
+    it('should lock after 5 attempts', async () => {
+      for (let i = 0; i < 5; i++) {
+        await request(app)
+          .post('/api/auth/login')
+          .send({ email: 'user@test.com', password: 'Wrong' });
+      }
+
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'user@test.com', password: 'Test@1234' });
+
+      expect(res.status).toBe(429);
+    });
+  });
+});
 ```
-CHANGES:
-- Remove localStorage.getItem('su_session')
-- Remove localStorage.setItem during init
-- Remove initialFarmers, initialDrivers seeding
-- Add DataProvider wrapper
-- Add ErrorBoundary wrapper
-- Add Socket.io connection on login
-- Add offline indicator to header
-- Add sync status to header (if offline)
 
-HEADER ADDITIONS:
-- Connection status dot (green/red)
-- "Syncing..." indicator if offline with queue
-- Number of queued changes
+### 7.2 Frontend API Tests
 
-AUTH FLOW:
-- Login API call (no localStorage password)
-- Store session in context + memory
-- Logout clears session and disconnects
+**File:** `/frontend/src/__tests__/apiService.test.js`
+
+```javascript
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { authService } from '../services/apiService';
+
+describe('API Service Tests', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it('should handle JSend success response', async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        json: () =>
+          Promise.resolve({
+            status: 'success',
+            data: { id: '123', email: 'test@example.com' },
+            token: 'jwt-token',
+          }),
+      })
+    );
+
+    const result = await authService.login('test@example.com', 'password');
+    expect(result.id).toBe('123');
+    expect(localStorage.getItem('authToken')).toBe('jwt-token');
+  });
+
+  it('should handle JSend fail response', async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        json: () =>
+          Promise.resolve({
+            status: 'fail',
+            message: 'Validation failed',
+            data: { email: 'Invalid email' },
+          }),
+      })
+    );
+
+    await expect(
+      authService.login('invalid', 'password')
+    ).rejects.toThrow('Validation failed');
+  });
+});
 ```
 
-**Deliverable:** App.jsx working with new architecture
+### 7.3 Run Tests
+```bash
+# Backend tests
+npm test -- tests/auth.test.js --coverage
+
+# Frontend tests
+cd frontend && npm test -- apiService.test.js --coverage
+
+# Verify:
+# ✓ Auth tests pass with >90% coverage
+# ✓ API contract tests pass
+# ✓ No "map is not a function" errors
+```
 
 ---
 
-### PHASE 2 COMPLETION CHECKLIST
+## PHASE 8: DEPLOYMENT (WEEK 4)
 
-- [ ] APIService created and tested
-- [ ] SocketService created and tested
-- [ ] useAPI hook working
-- [ ] useRealTime hook working
-- [ ] useOfflineMode hook working
-- [ ] DataContext implemented
-- [ ] Dashboard fully refactored
-- [ ] App.jsx updated
-- [ ] localStorage removed from initialization
-- [ ] Socket.io connected and listening
-- [ ] Offline mode working
-- [ ] Real-time updates visible
-- [ ] No regressions in existing features
+### 8.1 Railway Deployment
+
+```bash
+# TASK: Deploy backend to Railway
+1. Install Railway CLI
+2. Login: railway login
+3. Create project: railway init
+4. Set environment variables in dashboard
+5. Deploy: git push origin main
+6. Verify: Check health endpoint
+```
+
+### 8.2 Vercel Deployment
+
+```bash
+# TASK: Deploy frontend to Vercel
+1. Create vercel.json in root (see plan)
+2. Connect repo to Vercel dashboard
+3. Set VITE_API_URL env variable
+4. Deploy on push to main
+5. Verify CORS by checking network tab
+```
+
+### 8.3 Production Checklist
+```bash
 - [ ] All tests passing
-- [ ] Manual QA passed on all pages
-
-**Phase 2 Completion:** Report status, any issues, readiness for Phase 3
-
----
-
-## CRITICAL WARNINGS DURING EXECUTION
-
-### ⚠️ STOP & VERIFY BEFORE PROCEEDING
-
-**After Phase 1:**
-- [ ] Verify EVERY endpoint works in Postman
-- [ ] Verify database integrity (no data loss)
-- [ ] Verify calculations are correct (salary, expenses, income)
-- [ ] Verify error responses match specification
-- [ ] Verify rate limiting is in place
-- [ ] Verify authentication working
-
-**After Phase 2:**
-- [ ] Verify Dashboard loads without errors
-- [ ] Verify Socket.io connected (check browser console)
-- [ ] Verify real-time updates working (add a driver, see instant update)
-- [ ] Verify offline mode queues changes
-- [ ] Verify no localStorage references except cache
-- [ ] Verify error boundaries catching errors
-
-**If ANY verification fails:**
-- DO NOT PROCEED to next phase
-- Debug thoroughly
-- Fix root cause
-- Re-test everything
-- Report blocker
-
----
-
-## EXECUTION REPORTING
-
-**After Each Task:**
-```
-TASK: [Task Name]
-STATUS: [COMPLETE / IN PROGRESS / BLOCKED]
-FILES MODIFIED: [list]
-FILES CREATED: [list]
-TESTS PASSING: [Yes/No]
-KNOWN ISSUES: [if any]
-ESTIMATED TIME TO NEXT TASK: [hours]
-```
-
-**After Each Phase:**
-```
-PHASE [X] COMPLETION REPORT
-===============================
-DURATION: [actual time vs estimated]
-DELIVERABLES COMPLETED: [checklist]
-TESTS PASSING: [% coverage]
-REGRESSIONS FOUND: [if any, with fixes]
-BLOCKERS ENCOUNTERED: [if any, with resolutions]
-READINESS FOR PHASE [X+1]: [YES/NO]
-CONFIDENCE LEVEL: [HIGH/MEDIUM/LOW]
-NEXT PHASE START: [date/time]
+- [ ] CORS working from production domain
+- [ ] Error tracking (Sentry) configured
+- [ ] Database backups enabled
+- [ ] Monitoring dashboards created
+- [ ] Security headers verified
+- [ ] Rate limiting active
+- [ ] Logs flowing to centralized system
+- [ ] Rollback procedure tested
+- [ ] Team trained on new patterns
 ```
 
 ---
 
-## EXECUTION SAFETY GATES
+## PHASE 9: DOCUMENTATION (END OF WEEK 4)
 
-### Gate 1: After Phase 1
-**Requirement:** All backend APIs working, tested, documented
-**Approval:** Manual testing via Postman, code review
-**Proceed to Phase 2?** [YES / BLOCKED]
+### 9.1 Create API Documentation
+```bash
+# TASK: Document in README
+- Complete endpoint reference
+- Request/response examples for each endpoint
+- Auth flow diagram (ASCII art is fine)
+- Error codes and meanings
+- Rate limit rules
+- Example API calls with curl
+```
 
-### Gate 2: After Phase 2
-**Requirement:** Frontend services working, first page refactored
-**Approval:** Dashboard loads, real-time works, offline works
-**Proceed to Phase 3?** [YES / BLOCKED]
-
-### Gate 3: After Phase 3
-**Requirement:** All modules migrated to APIs
-**Approval:** Full feature parity with localStorage version
-**Proceed to Phase 4?** [YES / BLOCKED]
-
-### Gate 4: After Phase 4
-**Requirement:** All new features implemented
-**Approval:** Reports, PDFs, settings working
-**Proceed to Phase 5?** [YES / BLOCKED]
-
-### Gate 5: After Phase 5
-**Requirement:** Production-ready
-**Approval:** Security, performance, testing complete
-**Deploy to Production?** [YES / BLOCKED]
+### 9.2 Create Deployment Guide
+```bash
+# TASK: Document deployment steps
+- Prerequisites
+- Railway setup steps
+- Vercel setup steps
+- Database migration steps
+- How to rollback
+- Troubleshooting common issues
+```
 
 ---
 
-## PRODUCTION CONSTRAINTS
+## SUCCESS CRITERIA (VERIFY ALL)
 
-### You MUST NOT:
-- ❌ Deploy code with console.errors
-- ❌ Commit commented-out code
-- ❌ Use hardcoded values (all configurable)
-- ❌ Skip error handling (all paths covered)
-- ❌ Leave TODO comments (complete the work)
-- ❌ Commit without tests passing
-- ❌ Deploy without data backup
-- ❌ Change API response format without migration
-- ❌ Break existing features
-- ❌ Deploy without update verification
-
-### You MUST:
-- ✅ Write tests for all logic
-- ✅ Document all APIs
-- ✅ Handle all error cases
-- ✅ Test on mobile devices
-- ✅ Verify Tamil text rendering
-- ✅ Log important operations
-- ✅ Implement error recovery
-- ✅ Cache strategically
-- ✅ Optimize performance
-- ✅ Verify calculations are correct
+```bash
+✓ Zero "map is not a function" errors
+✓ All endpoints return JSend format
+✓ Auth system supports USER, DRIVER, FARMER
+✓ Account locks after 5 failed login attempts
+✓ CORS allows Vercel domain
+✓ API response time < 200ms (p95)
+✓ Rate limiting prevents brute force
+✓ Tests pass with >80% coverage
+✓ Security headers present
+✓ JWT tokens work across deployments
+✓ 404 and 500 errors return JSend format
+✓ Documentation complete and accurate
+✓ Rollback procedure tested
+```
 
 ---
 
-## FINAL EXECUTION CHECKLIST
+## COMMON ISSUES & FIXES
 
-**Before Starting:**
-- [ ] Read full V5 Architecture document
-- [ ] Understand current system state
-- [ ] Understand target state
-- [ ] Setup development environment
-- [ ] Database backups created
-- [ ] Git repository ready
-- [ ] Testing infrastructure ready
-- [ ] Monitoring ready
+### Issue: "CORS blocked from Vercel"
+**Fix:** Check corsOptions.origin array includes `https://smartuzhavan.vercel.app`
 
-**During Execution:**
-- [ ] Commit after each task completion
-- [ ] Report status after each phase
-- [ ] Verify tests passing continuously
-- [ ] Keep documentation updated
-- [ ] Communicate blockers immediately
-- [ ] Follow safety gates strictly
-- [ ] Maintain backward compatibility
+### Issue: "Invalid token errors"
+**Fix:** Verify JWT_SECRET is same in .env and production
 
-**At Completion:**
-- [ ] All phases done
-- [ ] All tests passing
-- [ ] All documentation complete
-- [ ] Data migration verified
-- [ ] Performance verified
-- [ ] Security verified
-- [ ] Production ready
-- [ ] Team trained
+### Issue: "Account locked after signup"
+**Fix:** Ensure loginAttempts is reset after successful signup
+
+### Issue: "map is not a function in React"
+**Fix:** Verify apiService interceptor returns `data.data` not wrapped response
+
+### Issue: "404 on /api/auth/login"
+**Fix:** Ensure auth routes mounted in server.js: `app.use('/api/auth', authRoutes)`
 
 ---
 
-## SUCCESS DEFINITION
+## EXECUTION NOTES
 
-V5 is complete when:
-1. ✅ All 35+ APIs implemented and tested
-2. ✅ 100% of frontend modules using APIs
-3. ✅ Real-time synchronization working
-4. ✅ All PDFs generating correctly
-5. ✅ All calculations verified correct
-6. ✅ Zero localStorage dependencies
-7. ✅ Offline/online transitions smooth
-8. ✅ Mobile responsive and tested
-9. ✅ Tamil localization complete
-10. ✅ Production monitoring in place
-11. ✅ Team trained and confident
-12. ✅ Zero regressions from V4
+1. **Work sequentially** - Each phase depends on previous
+2. **Test after each phase** - Don't wait for end to test
+3. **Commit frequently** - Small commits are easier to rollback
+4. **Use feature branches** - Don't commit directly to main
+5. **Document changes** - Update README as you go
+6. **Monitor logs** - Watch for errors in console during testing
+7. **Use Postman** - Test endpoints before moving to frontend
 
 ---
 
-**EXECUTION AUTHORIZED**
+## HANDOFF CRITERIA
 
-Date: [Current Date]  
-Authorized by: [Approver]  
-Timeline: 9 weeks  
-Budget: [As allocated]  
-Resource: 2 Engineers + 1 QA  
-
-**Proceed with Phase 1 immediately upon approval.**
+You're done when:
+1. All 3 deliverable files are complete and reviewed
+2. All tests pass with >80% coverage
+3. Staging environment mirrors production config
+4. Team has been trained on new patterns
+5. Rollback procedure has been tested
+6. Documentation is complete and reviewed
+7. Success metrics baseline has been established
 
 ---
 
-END OF ANTIGRAVITY EXECUTION PROMPT
+**Start Date:** [TODAY]  
+**Target Completion:** 4 weeks  
+**Status:** READY FOR EXECUTION  
 
+**Questions?** Refer back to:
+- `V6_Architecture_Restructure_Plan.md` for detailed phase specs
+- `V6_Architecture_Restructure_Plan.pdf` for architectural diagrams
+- This prompt for step-by-step execution
+
+**GO BUILD! 🚀**

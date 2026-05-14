@@ -64,7 +64,7 @@ class AuthFactory {
     // Generate token with DRIVER role
     const token = jwt.sign(
       { id: driver._id, role: 'DRIVER', phone: driver.phone },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET || 'smartuzhavan-secret-key-2024',
       { expiresIn: '30d' }
     );
 
@@ -98,7 +98,7 @@ class AuthFactory {
     // Generate token with FARMER role
     const token = jwt.sign(
       { id: farmer._id, role: 'FARMER', phone: farmer.phone },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET || 'smartuzhavan-secret-key-2024',
       { expiresIn: '30d' }
     );
 
@@ -153,7 +153,7 @@ class AuthFactory {
   static async verifyToken(token) {
     const jwt = require('jsonwebtoken');
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret-key');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'smartuzhavan-secret-key-2024');
       const user = await User.findById(decoded.id);
       
       if (!user || !user.isActive) {

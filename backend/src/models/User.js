@@ -100,7 +100,7 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
 userSchema.methods.generateAuthToken = function () {
   const token = jwt.sign(
     { id: this._id, email: this.email, role: this.role },
-    process.env.JWT_SECRET || 'dev-secret-key',
+    process.env.JWT_SECRET || 'smartuzhavan-secret-key-2024',
     { expiresIn: process.env.JWT_EXPIRY || '7d' }
   );
   return token;

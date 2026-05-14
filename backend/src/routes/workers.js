@@ -12,8 +12,19 @@ const auditLog = require('../middleware/audit');
  */
 router.post('/records', authenticateToken, auditLog('CREATE', 'WorkerRecord'), async (req, res, next) => {
     try {
-      const record = new WorkerRecord({
+      // Normalization for V3.1 Salary-based Entries
+      const mappedData = {
         ...req.body,
+        work_type: req.body.work_type || req.body.workType,
+        // If V3.1 sends baseSalary/bonus/advance, the model now accepts them directly
+      };
+
+      if (!mappedData.worker_id || !mappedData.work_type) {
+        return res.status(400).json({ status: 'fail', message: 'Worker ID and Work Type are required' });
+      }
+
+      const record = new WorkerRecord({
+        ...mappedData,
         createdBy: req.user._id
       });
       await record.save();

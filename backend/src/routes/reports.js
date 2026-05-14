@@ -12,7 +12,15 @@ const router = express.Router();
  */
 router.get('/', authenticateToken, async (req, res, next) => {
   try {
-    const query = { userId: req.user._id };
+    const query = {};
+    
+    // Role-based filtering
+    if (req.user.role === 'FARMER') {
+      query.farmer_id = req.user._id;
+    } else if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      query.userId = req.user._id;
+    }
+
     if (req.query.type) query.type = req.query.type;
 
     const reports = await Report.find(query).sort({ createdAt: -1 }).lean();
@@ -41,11 +49,11 @@ router.post('/', authenticateToken, authorize('ADMIN', 'FARMER'), async (req, re
 
     let reportData = {};
     if (type === 'harvest') {
-      reportData = await generateHarvestReport(req.user._id, period, startDate, endDate);
+      reportData = await generateHarvestReport(req.user._id, period, startDate, endDate, req.user.role);
     } else if (type === 'expense') {
-      reportData = await generateExpenseReport(req.user._id, period, startDate, endDate);
+      reportData = await generateExpenseReport(req.user._id, period, startDate, endDate, req.user.role);
     } else if (type === 'summary') {
-      reportData = await generateSummaryReport(req.user._id, period, startDate, endDate);
+      reportData = await generateSummaryReport(req.user._id, period, startDate, endDate, req.user.role);
     }
 
     const report = new Report({
@@ -80,8 +88,15 @@ router.get('/:id', authenticateToken, async (req, res, next) => {
 /**
  * Helper: Generate harvest report
  */
-async function generateHarvestReport(userId, period, startDate, endDate) {
-  const query = { userId, isDeleted: false };
+async function generateHarvestReport(userId, period, startDate, endDate, role) {
+  const query = { isDeleted: false };
+  
+  if (role === 'FARMER') {
+    query.farmer_id = userId;
+  } else {
+    query.userId = userId;
+  }
+
   if (startDate && endDate) {
     query.startDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
   }
@@ -98,8 +113,15 @@ async function generateHarvestReport(userId, period, startDate, endDate) {
 /**
  * Helper: Generate expense report
  */
-async function generateExpenseReport(userId, period, startDate, endDate) {
-  const query = { userId, isDeleted: false };
+async function generateExpenseReport(userId, period, startDate, endDate, role) {
+  const query = { isDeleted: false };
+  
+  if (role === 'DRIVER') {
+    query.driver_id = userId;
+  } else {
+    query.userId = userId;
+  }
+
   if (startDate && endDate) {
     query.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
   }
@@ -115,9 +137,9 @@ async function generateExpenseReport(userId, period, startDate, endDate) {
 /**
  * Helper: Generate summary report
  */
-async function generateSummaryReport(userId, period, startDate, endDate) {
-  const harvestData = await generateHarvestReport(userId, period, startDate, endDate);
-  const expenseData = await generateExpenseReport(userId, period, startDate, endDate);
+async function generateSummaryReport(userId, period, startDate, endDate, role) {
+  const harvestData = await generateHarvestReport(userId, period, startDate, endDate, role);
+  const expenseData = await generateExpenseReport(userId, period, startDate, endDate, role);
 
   return {
     period,

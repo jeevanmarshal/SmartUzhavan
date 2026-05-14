@@ -37,8 +37,15 @@ router.get('/', authenticateToken, async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const queryObj = { isDeleted: false };
+    
+    // Role-based filtering
+    if (req.user.role === 'FARMER') {
+      queryObj.farmer_id = req.user._id;
+    } else {
+      if (req.query.farmer_id) queryObj.farmer_id = req.query.farmer_id;
+    }
+    
     if (req.query.status) queryObj.status = req.query.status;
-    if (req.query.farmer_id) queryObj.farmer_id = req.query.farmer_id;
 
     const jobs = await HarvesterJob.find(queryObj)
       .populate('farmer_id', 'name village phone')

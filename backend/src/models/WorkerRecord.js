@@ -18,19 +18,23 @@ const workerRecordSchema = new mongoose.Schema({
   },
   units: {
     type: Number,
-    required: [true, 'Units are required'],
-    min: [0.1, 'Units must be greater than 0'],
+    required: false,
+    min: [0, 'Units must be at least 0'],
   },
   rate_per_unit: {
     type: Number,
-    required: [true, 'Rate per unit is required'],
+    required: false,
     min: [0, 'Rate cannot be negative'],
   },
   total_amount: {
     type: Number,
-    required: true,
+    required: false,
     min: 0,
   },
+  baseSalary: { type: Number, default: 0 },
+  bonus: { type: Number, default: 0 },
+  extraAmount: { type: Number, default: 0 },
+  advance: { type: Number, default: 0 },
   status: {
     type: String,
     enum: ['submitted', 'approved', 'paid'],

@@ -45,23 +45,23 @@ router.get('/', isAuthenticated, async (req, res) => {
 // @route   POST /api/rentals
 // @desc    Create a new rental
 // @access  Authenticated
-router.post('/', [
-  isAuthenticated,
-  auditLog('CREATE', 'Rental'),
-  [
-    body('farmer_id').notEmpty().withMessage('Farmer is required'),
-    body('equipment').notEmpty().withMessage('Equipment is required'),
-    body('startDate').notEmpty().withMessage('Start date is required'),
-    body('hours').isNumeric().withMessage('Hours must be a number'),
-    body('ratePerHour').isNumeric().withMessage('Rate per hour must be a number')
-  ]
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-
+router.post('/', isAuthenticated, auditLog('CREATE', 'Rental'), async (req, res) => {
   try {
-    const rental = new Rental({
+    // Normalization Layer for V3.1 Frontend Mapping
+    const mappedData = {
       ...req.body,
+      equipment: req.body.equipment || req.body.machineType,
+      hours: req.body.hours || req.body.quantity,
+      ratePerHour: req.body.ratePerHour || req.body.ratePerUnit,
+      startDate: req.body.startDate || req.body.date || new Date(),
+    };
+
+    if (!mappedData.equipment || !mappedData.farmer_id) {
+      return res.status(400).json({ success: false, message: 'Equipment and Farmer are required' });
+    }
+
+    const rental = new Rental({
+      ...mappedData,
       createdBy: req.user._id
     });
 
@@ -69,7 +69,7 @@ router.post('/', [
     res.status(201).json({ success: true, data: rental });
   } catch (error) {
     logger.error(`Create rental error: ${error.message}`);
-    res.status(500).json({ success: false, error: { message: 'Server Error' } });
+    res.status(500).json({ success: false, error: { message: error.message || 'Server Error' } });
   }
 });
 

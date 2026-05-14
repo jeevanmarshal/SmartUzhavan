@@ -38,8 +38,19 @@ const rentalSchema = new mongoose.Schema({
   },
   hours: {
     type: Number,
-    required: [true, 'Hours are required'],
-    min: [0.1, 'Hours must be greater than 0'],
+    required: false,
+    min: [0, 'Hours must be at least 0'],
+  },
+  quantity: {
+    type: Number,
+    required: false,
+  },
+  ratePerUnit: {
+    type: Number,
+    required: false,
+  },
+  date: {
+    type: Date,
   },
   ratePerHour: {
     type: Number,

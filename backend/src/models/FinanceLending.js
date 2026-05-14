@@ -23,12 +23,17 @@ const financeLendingSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: ['loan', 'advance', 'credit'],
+    default: 'loan',
     required: [true, 'Finance type is required'],
+  },
+  personName: {
+    type: String,
+    trim: true,
   },
   farmer_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Farmer',
-    required: [true, 'Farmer ID is required'],
+    required: false,
   },
   amount: {
     type: Number,
@@ -55,7 +60,7 @@ const financeLendingSchema = new mongoose.Schema({
   payments: [paymentSchema],
   status: {
     type: String,
-    enum: ['pending', 'partial', 'completed'],
+    enum: ['pending', 'partial', 'completed', 'active'],
     default: 'pending',
   },
   createdBy: {
@@ -75,8 +80,6 @@ const financeLendingSchema = new mongoose.Schema({
 financeLendingSchema.pre('save', function(next) {
   if (this.payments && this.payments.length > 0) {
     const totalPaid = this.payments.reduce((sum, p) => sum + p.amount, 0);
-    // Note: This simple calculation doesn't include interest compound over time.
-    // Real-world scenarios might need a more complex interest calculation here.
     if (totalPaid >= this.amount) {
       this.status = 'completed';
     } else if (totalPaid > 0) {
@@ -85,7 +88,10 @@ financeLendingSchema.pre('save', function(next) {
       this.status = 'pending';
     }
   } else {
-    this.status = 'pending';
+    // Keep 'active' if set by frontend
+    if (this.status !== 'active') {
+       this.status = 'pending';
+    }
   }
   
   if (this.dueDate && this.dueDate < this.date) {

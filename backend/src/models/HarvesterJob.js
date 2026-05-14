@@ -56,6 +56,22 @@ const harvesterJobSchema = new mongoose.Schema({
     ref: 'DriverLog'
   }],
   payments: [paymentSchema],
+  billId: {
+    type: String,
+    default: null,
+  },
+  totalHours: {
+    type: Number,
+    default: 0,
+  },
+  finalAmount: {
+    type: Number,
+    default: 0,
+  },
+  netProfit: {
+    type: Number,
+    default: 0,
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

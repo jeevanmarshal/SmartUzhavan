@@ -97,19 +97,76 @@ export const farmerService = {
   create: (data) => api.post('/api/farmers', data),
 };
 
+export const harvesterService = {
+  getAll: () => api.get('/api/harvester'),
+  getById: (id) => api.get(`/api/harvester/${id}`),
+  create: (data) => api.post('/api/harvester', data),
+  update: (id, data) => api.put(`/api/harvester/${id}`, data),
+  delete: (id) => api.delete(`/api/harvester/${id}`),
+  linkLogs: (id, logIds) => api.post(`/api/harvester/${id}/link-logs`, { logIds }),
+};
+
+export const financeService = {
+  getSummary: () => api.get('/api/finance/summary'),
+  getAll: () => api.get('/api/finance'),
+  create: (data) => api.post('/api/finance', data),
+  update: (id, data) => api.put(`/api/finance/${id}`, data),
+  delete: (id) => api.delete(`/api/finance/${id}`),
+};
+
 export const reportService = {
   getSummary: () => api.get('/api/reports/summary'),
   getAll: () => api.get('/api/reports'),
   create: (data) => api.post('/api/reports', data),
+  download: (id) => api.get(`/api/reports/${id}/download`, { responseType: 'blob' }),
 };
 
-// Legacy compatibility
+// Legacy compatibility mapping for V3.1 components
 export const apiService = {
+  // Auth
   login: authService.login,
   driverLogin: driverService.login,
-  getDrivers: driverService.getAll,
+  request: (method, url, data) => api({ method, url, data }), // Generic request helper used in legacy
+  
+  // Harvester
+  getHarvesterJobs: harvesterService.getAll,
+  getHarvesterJob: harvesterService.getById,
+  createHarvesterJob: harvesterService.create,
+  updateHarvesterJob: harvesterService.update,
+  deleteHarvesterJob: harvesterService.delete,
+  
+  // Expenses
+  getExpenses: expenseService.getAll,
+  getExpense: expenseService.getById,
+  createExpense: expenseService.create,
+  updateExpense: expenseService.update,
+  deleteExpense: expenseService.delete,
+  
+  // Farmers
   getFarmers: farmerService.getAll,
-  getDashboardSummary: () => api.get('/api/finance/summary'),
+  getFarmer: farmerService.getById,
+  createFarmer: farmerService.create,
+  updateFarmer: farmerService.update,
+  deleteFarmer: farmerService.delete,
+  
+  // Finance
+  getDashboardSummary: financeService.getSummary,
+  getFinanceRecords: financeService.getAll,
+  createFinanceRecord: financeService.create,
+  updateFinanceRecord: financeService.update,
+  deleteFinanceRecord: financeService.delete,
+
+  // Drivers
+  getDrivers: driverService.getAll,
+  getAllDriverSalaries: () => api.get('/api/drivers/salaries/all'), // Specific endpoint used in Harvester.jsx
+  
+  // Reports
+  getReports: reportService.getAll,
+  createReport: reportService.create,
+  downloadReport: reportService.download,
+  
+  // Settings
+  getSettings: () => api.get('/api/settings'),
 };
 
 export default api;

@@ -10,10 +10,16 @@ const auditLog = require('../middleware/audit');
  */
 router.post('/', authenticateToken, auditLog('CREATE', 'HarvesterJob'), async (req, res, next) => {
   try {
-    const job = new HarvesterJob({
+    const jobData = {
       ...req.body,
-      createdBy: req.user._id
-    });
+      userId: req.user._id,
+      farmer_id: req.body.farmer_id || req.body.farmerId,
+      equipment: req.body.equipment || req.body.machineType,
+      location: req.body.location || req.body.village,
+      area: req.body.area || req.body.totalHours
+    };
+
+    const job = new HarvesterJob(jobData);
     await job.save();
     return res.success(job, 'Harvester job created', 201);
   } catch (error) {

@@ -73,6 +73,8 @@ api.interceptors.response.use(
 
 export const authService = {
   login: (identifier, password) => api.post('/api/auth/login', { identifier, password }),
+  driverLogin: (phone, pin) => api.post('/api/auth/driver-login', { phone, pin }),
+  farmerLogin: (phone) => api.post('/api/auth/farmer-login', { phone }),
   signup: (userData) => api.post('/api/auth/signup', userData),
   logout: () => api.post('/api/auth/logout'),
   getMe: () => api.get('/api/auth/me'),
@@ -158,7 +160,10 @@ export const apiService = {
 
   // Drivers
   getDrivers: driverService.getAll,
-  getAllDriverSalaries: () => api.get('/api/drivers/salaries/all'), // Specific endpoint used in Harvester.jsx
+  getDriver: driverService.getById,
+  getDriverSalaries: (id) => api.get(`/api/drivers/${id}/salary-history`),
+  getAllDriverSalaries: () => api.get('/api/drivers/salaries/all'),
+  driverLogin: authService.driverLogin,
   
   // Reports
   getReports: reportService.getAll,

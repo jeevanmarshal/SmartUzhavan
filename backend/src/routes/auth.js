@@ -44,6 +44,50 @@ router.post('/login', async (req, res, next) => {
 });
 
 /**
+ * @route   POST /api/auth/driver-login
+ * @desc    Driver login via Phone/PIN
+ */
+router.post('/driver-login', async (req, res, next) => {
+  try {
+    const { phone, pin } = req.body;
+    const result = await AuthFactory.driverLogin(phone, pin);
+    
+    res.cookie('authToken', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.success(result, 'Driver login successful');
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   POST /api/auth/farmer-login
+ * @desc    Farmer login via Phone
+ */
+router.post('/farmer-login', async (req, res, next) => {
+  try {
+    const { phone } = req.body;
+    const result = await AuthFactory.farmerLogin(phone);
+    
+    res.cookie('authToken', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.success(result, 'Farmer access granted');
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * @route   POST /api/auth/logout
  * @desc    Clear auth cookie
  */

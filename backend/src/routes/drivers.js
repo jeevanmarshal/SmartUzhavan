@@ -122,4 +122,21 @@ router.delete('/:id', authenticateToken, authorize('ADMIN', 'SUPER_ADMIN'), audi
   }
 });
 
+/**
+ * @route   GET /api/drivers/:id/salary-history
+ * @desc    Get work logs and salary history for a specific driver
+ */
+router.get('/:id/salary-history', authenticateToken, async (req, res, next) => {
+  try {
+    const logs = await DriverLog.find({ 
+      driver_id: req.params.id, 
+      isDeleted: false 
+    }).sort({ date: -1 });
+
+    return res.success(logs, 'Driver salary history retrieved');
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

@@ -170,8 +170,8 @@ const Harvester = () => {
       const createdJobRes = await apiService.createHarvesterJob(jobRecord);
       const createdJob = createdJobRes.data || createdJobRes;
       
-      // Also link the logs on the backend explicitly if needed
-      await apiService.request('POST', `/harvester-jobs/${createdJob._id}/link-logs`, { logIds: formData.linkedLogIds });
+      // Use the unified service method for linking logs
+      await harvesterService.linkLogs(createdJob._id, formData.linkedLogIds);
       
       await refreshData();
       

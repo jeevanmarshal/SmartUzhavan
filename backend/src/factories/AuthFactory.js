@@ -41,6 +41,79 @@ class AuthFactory {
   }
 
   /**
+   * Driver login handler (V3.1 Style)
+   */
+  static async driverLogin(phone, pin) {
+    const Driver = require('../models/Driver');
+    const jwt = require('jsonwebtoken');
+
+    if (!phone || !pin) {
+      throw { statusCode: 400, message: 'Phone and PIN are required' };
+    }
+
+    const driver = await Driver.findOne({ phone, isDeleted: false });
+    if (!driver || !driver.active) {
+      throw { statusCode: 401, message: 'Invalid phone or inactive driver' };
+    }
+
+    const isPinValid = await driver.verifyPIN(pin);
+    if (!isPinValid) {
+      throw { statusCode: 401, message: 'Invalid PIN' };
+    }
+
+    // Generate token with DRIVER role
+    const token = jwt.sign(
+      { id: driver._id, role: 'DRIVER', phone: driver.phone },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '30d' }
+    );
+
+    return {
+      user: {
+        _id: driver._id,
+        name: driver.name,
+        role: 'DRIVER',
+        phone: driver.phone
+      },
+      token
+    };
+  }
+
+  /**
+   * Farmer login handler (V3.1 Style - Phone only)
+   */
+  static async farmerLogin(phone) {
+    const Farmer = require('../models/Farmer');
+    const jwt = require('jsonwebtoken');
+
+    if (!phone) {
+      throw { statusCode: 400, message: 'Phone number is required' };
+    }
+
+    const farmer = await Farmer.findOne({ phone, isDeleted: false });
+    if (!farmer) {
+      throw { statusCode: 404, message: 'Farmer not found with this phone number' };
+    }
+
+    // Generate token with FARMER role
+    const token = jwt.sign(
+      { id: farmer._id, role: 'FARMER', phone: farmer.phone },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '30d' }
+    );
+
+    return {
+      user: {
+        _id: farmer._id,
+        name: farmer.name,
+        role: 'FARMER',
+        phone: farmer.phone
+      },
+      token
+    };
+  }
+
+  /**
    * Universal signup handler
    */
   static async signup(userData) {

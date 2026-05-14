@@ -91,6 +91,7 @@ export const expenseService = {
 export const driverService = {
   getAll: () => api.get('/api/drivers'),
   getById: (id) => api.get(`/api/drivers/${id}`),
+  create: (data) => api.post('/api/drivers', data),
   update: (id, data) => api.put(`/api/drivers/${id}`, data),
   delete: (id) => api.delete(`/api/drivers/${id}`),
   getSalaries: (id) => api.get(`/api/drivers/${id}/salary-history`),
@@ -208,6 +209,7 @@ export const apiService = {
   // Drivers
   getDrivers: driverService.getAll,
   getDriver: driverService.getById,
+  createDriver: driverService.create,
   updateDriver: driverService.update,
   deleteDriver: driverService.delete,
   getDriverSalaries: driverService.getSalaries,
@@ -215,6 +217,7 @@ export const apiService = {
   createDriverSalary: (driverId, data) => driverService.createSalary({ ...data, driver_id: driverId }),
   updateDriverSalary: driverService.updateSalary,
   deleteDriverSalary: driverService.deleteSalary,
+  addDriverSalaryPayment: (id, payment) => api.post(`/api/drivers/salaries/${id}/payments`, payment),
 
   // Workers
   getWorkers: workerService.getAll,

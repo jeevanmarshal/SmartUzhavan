@@ -32,6 +32,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
  * @desc    Create new expense
  */
 router.post('/', authenticateToken, async (req, res, next) => {
+  try {
     const type = req.body.type || req.body.source;
     const { category, amount, description, date } = req.body;
 

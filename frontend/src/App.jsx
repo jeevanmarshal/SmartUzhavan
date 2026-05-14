@@ -48,9 +48,10 @@ function App() {
     );
   }
 
-  const isAdmin = user.role === 'admin';
-  const isDriver = user.role === 'driver';
-  const isFarmer = user.role === 'farmer';
+  const role = user.role ? user.role.toLowerCase() : '';
+  const isAdmin = role === 'admin' || role === 'super_admin';
+  const isDriver = role === 'driver';
+  const isFarmer = role === 'farmer';
 
   return (
     <DataProvider>

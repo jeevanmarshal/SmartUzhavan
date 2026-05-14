@@ -13,8 +13,11 @@ const ProtectedRoute = ({ children, requiredRole = null, user }) => {
     return <Navigate to="/login" replace />;
   }
 
+  const role = user.role ? user.role.toLowerCase() : '';
+  const reqRole = requiredRole ? requiredRole.toLowerCase() : null;
+
   // Check role if required (Admin bypasses most checks)
-  if (requiredRole && user.role !== requiredRole && user.role !== 'admin' && user.role !== 'super_admin') {
+  if (reqRole && role !== reqRole && role !== 'admin' && role !== 'super_admin') {
     return <Navigate to="/" replace />;
   }
 

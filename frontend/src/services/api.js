@@ -35,11 +35,15 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor
 api.interceptors.response.use(
   (response) => {
     const data = response.data;
     
+    // Handle Blob/Binary responses
+    if (response.config.responseType === 'blob' || data instanceof Blob) {
+      return data;
+    }
+
     if (data.status === 'success') {
       // If login, store token
       if (response.config.url.includes('/auth/login') && data.data.token) {

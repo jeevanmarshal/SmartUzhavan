@@ -46,6 +46,10 @@ router.get('/', isAuthenticated, async (req, res) => {
 router.post('/', isAuthenticated, auditLog('CREATE', 'Rental'), async (req, res) => {
   try {
     // Normalization Layer for V3.1 Frontend Mapping
+    let status = req.body.status;
+    if (status === 'active') status = 'in-progress';
+    if (!['scheduled', 'in-progress', 'completed'].includes(status)) status = 'scheduled';
+
     const mappedData = {
       ...req.body,
       equipment: req.body.equipment || req.body.machineType,
@@ -53,6 +57,7 @@ router.post('/', isAuthenticated, auditLog('CREATE', 'Rental'), async (req, res)
       hours: parseFloat(req.body.hours || req.body.quantity || 0),
       ratePerHour: parseFloat(req.body.ratePerHour || req.body.ratePerUnit || 0),
       startDate: req.body.startDate || req.body.date || new Date(),
+      status
     };
 
     mappedData.totalAmount = parseFloat(req.body.totalAmount || req.body.totalPrice || (mappedData.hours * mappedData.ratePerHour) || 0);

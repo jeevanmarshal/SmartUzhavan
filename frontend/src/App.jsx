@@ -157,14 +157,14 @@ function App() {
         )}
         {isDriver && (
           <>
-            <Route path="/driver-dashboard" element={<DriverDashboard userId={user.id} />} />
-            <Route path="/driver-entry" element={<DriverEntry userId={user.id} />} />
-            <Route path="/drivers" element={<Drivers userId={user.id} />} />
+            <Route path="/driver-dashboard" element={<DriverDashboard userId={user._id || user.id} />} />
+            <Route path="/driver-entry" element={<DriverEntry userId={user._id || user.id} />} />
+            <Route path="/drivers" element={<Drivers userId={user._id || user.id} />} />
           </>
         )}
         {isFarmer && (
           <>
-            <Route path="/farmer-view" element={<FarmerView userId={user.id} />} />
+            <Route path="/farmer-view" element={<FarmerView userId={user._id || user.id} />} />
           </>
         )}
         

@@ -46,8 +46,14 @@ api.interceptors.response.use(
 
     if (data.status === 'success') {
       // If login, store token
-      if (response.config.url.includes('/auth/login') && data.data.token) {
-        localStorage.setItem('authToken', data.data.token);
+      if (response.config.url.includes('/auth/login') || 
+          response.config.url.includes('/auth/driver-login') || 
+          response.config.url.includes('/auth/farmer-login')) {
+        if (data.data && data.data.token) {
+          localStorage.setItem('authToken', data.data.token);
+        } else if (data.token) {
+          localStorage.setItem('authToken', data.token);
+        }
       }
       return data.data;
     }

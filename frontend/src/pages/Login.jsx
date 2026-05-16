@@ -297,8 +297,9 @@ const Login = ({ onLogin }) => {
         {/* LOGIN FORM */}
         <form onSubmit={handleLogin}>
           <InputField 
-            english={role === 'admin' ? 'Email' : 'Phone Number'} 
-            tamil={role === 'admin' ? 'மின்னஞ்சல்' : 'தொலைபேசி எண்'}
+            english="Phone Number" 
+            tamil="தொலைபேசி எண்"
+            type="number"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             required

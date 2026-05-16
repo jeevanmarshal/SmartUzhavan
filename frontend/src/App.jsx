@@ -110,14 +110,17 @@ function App() {
     <DataProvider>
       <Router>
       <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div className="header-left" style={{ display: 'flex', alignItems: 'center' }}>
           <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
+        </div>
+        
+        <div className="header-logo">
           <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>
         </div>
         
         <div className="header-actions">
           <div className="user-badge">
-            <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', fontSize: '0.85rem' }}>
+            <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
               [ {displayRole} : {user.name} ]
             </span>
           </div>

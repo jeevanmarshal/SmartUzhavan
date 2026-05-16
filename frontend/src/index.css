@@ -59,6 +59,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Responsive Navigation */
 .desktop-nav {
   display: flex;
+  justify-content: center;
   padding: 0 15px;
   background: #2D3748;
   gap: 5px;
@@ -133,15 +134,35 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.9rem;
 }
 
+.header-left {
+  flex: 1;
+}
+
+.header-logo {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
   gap: 15px;
-  margin-left: auto;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 @media (max-width: 600px) {
+  .header-left {
+    flex: 0;
+    margin-right: 15px;
+  }
+  .header-logo {
+    flex: 1;
+    justify-content: flex-start;
+  }
   .header-actions {
+    flex: 0;
     flex-direction: column;
     align-items: flex-end;
     gap: 8px;

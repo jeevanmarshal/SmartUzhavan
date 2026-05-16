@@ -69,17 +69,17 @@ const DriverDashboard = ({ userId }) => {
     const uniqueDays = new Set(filteredData.map(l => new Date(l.date).toDateString())).size;
 
     const earned = filteredData.reduce((sum, s) => {
-        // Fallback to baseSalary if netPay is undefined
-        const net = s.netPay !== undefined ? s.netPay : ((s.baseSalary || 0) + (s.bonus || 0) + (s.extraAmount || 0) - (s.advance || 0));
-        return sum + net;
+      // Fallback to baseSalary if netPay is undefined
+      const net = s.netPay !== undefined ? s.netPay : ((s.baseSalary || 0) + (s.bonus || 0) + (s.extraAmount || 0) - (s.advance || 0));
+      return sum + net;
     }, 0);
     const bonus = filteredData.reduce((sum, s) => sum + (parseFloat(s.bonus) || 0), 0);
     const extra = filteredData.reduce((sum, s) => sum + (parseFloat(s.extraAmount) || 0), 0);
     const advance = filteredData.reduce((sum, s) => sum + (parseFloat(s.advance) || 0), 0);
-    
+
     const received = filteredData.reduce((sum, s) => {
-        const paid = (s.payments || []).reduce((pSum, p) => pSum + p.amount, 0);
-        return sum + paid;
+      const paid = (s.payments || []).reduce((pSum, p) => pSum + p.amount, 0);
+      return sum + paid;
     }, 0);
 
     return {
@@ -101,9 +101,9 @@ const DriverDashboard = ({ userId }) => {
   return (
     <div className="app-container">
       <div className="card" style={{ background: 'linear-gradient(135deg, #1B3A6B 0%, #2D3748 100%)', color: 'white', marginBottom: '20px' }}>
-        <h2 style={{ margin: 0, color: 'white' }}>வணக்கம், {driver?.name || 'Driver'}</h2>
-        <p style={{ opacity: 0.8, fontSize: '0.9rem', color: 'white' }}>ஓட்டுநர் மேலாண்மை பலகை (Driver Dashboard)</p>
-        
+        <h2 style={{ margin: 0, color: 'white' }}>வணக்கம், {driver?.name || 'Driver'}</h2>  <br /> <br />
+        <p style={{ opacity: 0.8, fontSize: '0.9rem', color: 'white' }}>ஓட்டுநர் மேலாண்மை பலகை  <br /> (Driver Dashboard)</p>
+
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
           <div>
             <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Total Hours Worked</div>
@@ -117,8 +117,8 @@ const DriverDashboard = ({ userId }) => {
       </div>
 
       <div className="card" style={{ marginBottom: '20px' }}>
-        <SelectField 
-          english="Filter By" tamil="வடிகட்டி" 
+        <SelectField
+          english="Filter By" tamil="வடிகட்டி"
           options={[
             { value: 'month', label: 'By Month (மாதம் வாரியாக)' },
             { value: 'season', label: 'By Season (பருவம் வாரியாக)' }
@@ -128,8 +128,8 @@ const DriverDashboard = ({ userId }) => {
         />
         {filterMode === 'month' ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <SelectField 
-              english="Month" tamil="மாதம்" 
+            <SelectField
+              english="Month" tamil="மாதம்"
               options={[
                 { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
                 { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
@@ -139,16 +139,16 @@ const DriverDashboard = ({ userId }) => {
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             />
-            <InputField 
-              english="Year" tamil="ஆண்டு" type="number" 
+            <InputField
+              english="Year" tamil="ஆண்டு" type="number"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
             />
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <SelectField 
-              english="Season" tamil="பருவம்" 
+            <SelectField
+              english="Season" tamil="பருவம்"
               options={[
                 { value: 'KUR', label: 'KUR (குறுவை)' },
                 { value: 'SAM', label: 'SAM (சம்பா)' },
@@ -157,8 +157,8 @@ const DriverDashboard = ({ userId }) => {
               value={selectedSeason}
               onChange={(e) => setSelectedSeason(e.target.value)}
             />
-            <InputField 
-              english="Year" tamil="ஆண்டு" type="number" 
+            <InputField
+              english="Year" tamil="ஆண்டு" type="number"
               value={seasonYear}
               onChange={(e) => setSeasonYear(e.target.value)}
             />
@@ -179,10 +179,10 @@ const DriverDashboard = ({ userId }) => {
 
       {stats.due > 0 && (
         <div className="card" style={{ background: '#FFF5F5', border: '1px solid #FEB2B2', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#C53030', fontWeight: 'bold' }}>Pending Salary (மீதமுள்ள சம்பளம்)</span>
-                <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#C53030' }}>{formatCurrency(stats.due)}</span>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#C53030', fontWeight: 'bold' }}>Pending Salary (மீதமுள்ள சம்பளம்)</span>
+            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#C53030' }}>{formatCurrency(stats.due)}</span>
+          </div>
         </div>
       )}
 

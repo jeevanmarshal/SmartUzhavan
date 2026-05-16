@@ -115,12 +115,7 @@ function App() {
           <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <div className="user-badge">
-            <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', fontSize: '0.85rem' }}>
-              [ {displayRole} : {user.name} ]
-            </span>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <button 
             onClick={handleLogout}
             style={{ 
@@ -131,12 +126,16 @@ function App() {
               borderRadius: '6px', 
               cursor: 'pointer', 
               fontSize: '0.85rem',
-              transition: 'all 0.2s',
-              order: 1
+              transition: 'all 0.2s'
             }}
           >
             Logout
           </button>
+          <div className="user-badge">
+            <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', fontSize: '0.85rem' }}>
+              [ {displayRole} : {user.name} ]
+            </span>
+          </div>
         </div>
       </header>
 

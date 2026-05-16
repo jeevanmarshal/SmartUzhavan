@@ -84,17 +84,34 @@ router.post('/', isAuthenticated, auditLog('CREATE', 'Rental'), async (req, res)
 // @access  Authenticated
 router.put('/:id', isAuthenticated, auditLog('UPDATE', 'Rental'), async (req, res) => {
   try {
+    const updateData = { ...req.body };
+    
+    // Normalize payments to prevent CastError from frontend 'id' and map 'mode' to 'method'
+    if (updateData.payments && Array.isArray(updateData.payments)) {
+      updateData.payments = updateData.payments.map(p => {
+        const payment = { ...p };
+        if (payment.mode) {
+          let method = payment.mode;
+          if (method === 'bank') method = 'bank_transfer';
+          payment.method = method;
+          delete payment.mode;
+        }
+        delete payment.id; // Prevent CastError on virtual _id
+        return payment;
+      });
+    }
+
     const rental = await Rental.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
-      { $set: req.body },
-      { new: true }
+      { $set: updateData },
+      { new: true, runValidators: true }
     );
 
     if (!rental) return res.status(404).error('Rental not found', 404);
     return res.success(rental, 'Rental updated');
   } catch (error) {
     logger.error(`Update rental error: ${error.message}`);
-    res.status(500).json({ success: false, error: { message: 'Server Error' } });
+    res.status(500).json({ success: false, error: { message: error.message || 'Server Error' } });
   }
 });
 

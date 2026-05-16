@@ -8,12 +8,15 @@ const auditLog = require('../middleware/audit');
 router.post('/', authenticateToken, auditLog('CREATE', 'OwnFarmIncome'), async (req, res, next) => {
   try {
     // Normalization Layer for V3.1 Frontend Mapping
+    let type = req.body.type || req.body.incomeSource;
+    if (type === 'vaikool') type = 'straw'; // Map vaikool to straw for backend enum
+
     const mappedData = {
       ...req.body,
-      type: req.body.type || req.body.incomeSource,
-      quantity: req.body.quantity || req.body.numberOfBags || req.body.numberOfBundles || 0,
-      price_per_unit: req.body.price_per_unit || req.body.pricePerBag || req.body.pricePerBundle || 0,
-      total_amount: req.body.total_amount || req.body.totalIncome || 0,
+      type,
+      quantity: parseFloat(req.body.quantity || req.body.numberOfBags || req.body.numberOfBundles || 0),
+      price_per_unit: parseFloat(req.body.price_per_unit || req.body.pricePerBag || req.body.pricePerBundle || 0),
+      total_amount: parseFloat(req.body.total_amount || req.body.totalIncome || 0),
       createdBy: req.user?._id
     };
 
@@ -47,11 +50,23 @@ router.get('/', authenticateToken, async (req, res, next) => {
     const records = await OwnFarmIncome.find(queryObj)
       .sort({ date: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
       
+    // Map back for V3.1 Frontend compatibility
+    const compatibleRecords = records.map(r => ({
+      ...r,
+      incomeSource: r.type === 'straw' ? 'vaikool' : r.type,
+      numberOfBags: r.type === 'paddy' ? r.quantity : 0,
+      numberOfBundles: r.type === 'straw' ? r.quantity : 0,
+      totalIncome: r.total_amount,
+      pricePerBag: r.type === 'paddy' ? r.price_per_unit : 0,
+      pricePerBundle: r.type === 'straw' ? r.price_per_unit : 0
+    }));
+
     const total = await OwnFarmIncome.countDocuments(queryObj);
 
-    return res.success(records, 'Income records retrieved', 200, {
+    return res.success(compatibleRecords, 'Income records retrieved', 200, {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     });
   } catch (error) {
@@ -89,7 +104,17 @@ router.put('/:id', authenticateToken, auditLog('UPDATE', 'OwnFarmIncome'), async
     const record = await OwnFarmIncome.findOne({ _id: req.params.id, isDeleted: false });
     if (!record) return res.status(404).error('Record not found', 404);
 
-    Object.assign(record, req.body);
+    let type = req.body.type || req.body.incomeSource || record.type;
+    if (type === 'vaikool') type = 'straw';
+
+    Object.assign(record, {
+        ...req.body,
+        type,
+        quantity: parseFloat(req.body.quantity || req.body.numberOfBags || req.body.numberOfBundles || record.quantity),
+        price_per_unit: parseFloat(req.body.price_per_unit || req.body.pricePerBag || req.body.pricePerBundle || record.price_per_unit),
+        total_amount: parseFloat(req.body.total_amount || req.body.totalIncome || record.total_amount)
+    });
+    
     await record.save();
 
     return res.success(record, 'Income record updated');

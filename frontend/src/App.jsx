@@ -114,7 +114,7 @@ function App() {
           <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>
-            <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem', display: 'none', '@media (min-width: 400px)': { display: 'flex' } }}>
+            <div className="user-badge">
               <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
                 [ {displayRole} : {user.name} ]
               </span>

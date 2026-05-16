@@ -16,7 +16,8 @@ router.post('/', authenticateToken, auditLog('CREATE', 'HarvesterJob'), async (r
       farmer_id: req.body.farmer_id || req.body.farmerId,
       equipment: req.body.equipment || req.body.machineType,
       location: req.body.location || req.body.village,
-      area: req.body.area || req.body.totalHours
+      area: req.body.area || req.body.totalHours || 0.1,
+      startDate: req.body.startDate || req.body.date || new Date()
     };
 
     const job = new HarvesterJob(jobData);

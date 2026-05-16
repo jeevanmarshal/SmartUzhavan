@@ -28,6 +28,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
       .limit(limit);
     
     const total = await Farmer.countDocuments(query);
+    console.log(`[Farmers API] Found ${farmers.length} farmers out of ${total} total.`);
     
     return res.success(farmers, 'Farmers retrieved', 200, {
       pagination: {

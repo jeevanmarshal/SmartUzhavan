@@ -23,12 +23,15 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
 
     // 2. Get harvest income
     const jobs = await HarvesterJob.find({ isDeleted: false });
-    const harvestIncome = jobs.reduce((sum, j) => sum + (j.totalAmount || 0), 0);
+    const harvestIncome = jobs.reduce((sum, j) => sum + (j.finalAmount || 0), 0);
 
-    // 3. Get total expenses
+    // 3. Get total expenses (Business Expenses + Lending Outflow)
     const expenses = await Expense.find({ isDeleted: false });
-    const totalExpense = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-
+    const businessExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    
+    const lendingOutflow = records.reduce((sum, r) => sum + (r.amount || 0), 0);
+    
+    const totalExpense = businessExpenses + lendingOutflow;
     const totalIncome = lendingIncome + harvestIncome;
 
     res.success({

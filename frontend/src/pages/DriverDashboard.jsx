@@ -107,11 +107,11 @@ const DriverDashboard = ({ userId }) => {
         </p>
 
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <div>
+          <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Total Hours Worked</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.totalHours.toFixed(2)}</div>
           </div>
-          <div>
+          <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Total Days Worked</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.daysWorked}</div>
           </div>

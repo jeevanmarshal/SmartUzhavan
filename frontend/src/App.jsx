@@ -109,7 +109,7 @@ function App() {
   return (
     <DataProvider>
       <Router>
-      <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+      <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
           <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>

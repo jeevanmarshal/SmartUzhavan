@@ -42,6 +42,29 @@ const NavLink = ({ to, children, onClick }) => {
   );
 };
 
+const MobileNavLink = ({ to, children, onClick }) => {
+  const location = useLocation();
+  const isActive = location.pathname.startsWith(to.split('?')[0]);
+  return (
+    <Link 
+      to={to} 
+      onClick={onClick}
+      style={{
+        display: 'block',
+        color: isActive ? '#48BB78' : 'white',
+        padding: '15px 20px',
+        textDecoration: 'none',
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
+        background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
+        fontWeight: isActive ? '700' : '500',
+        borderLeft: isActive ? '4px solid #48BB78' : '4px solid transparent'
+      }}
+    >
+      {children}
+    </Link>
+  );
+};
+
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(() => {
@@ -79,6 +102,9 @@ function App() {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const isDriver = role === 'DRIVER';
   const isFarmer = role === 'FARMER';
+  
+  // Format role name for display
+  const displayRole = isAdmin ? 'Admin' : isDriver ? 'Driver' : isFarmer ? 'Farmer' : role;
 
   return (
     <DataProvider>
@@ -88,8 +114,10 @@ function App() {
           <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', display: 'none', '@media (min-width: 400px)': { display: 'flex' } }}>
-              <span style={{ fontWeight: '600', color: 'white' }}>{user.name}</span>
+            <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem', display: 'none', '@media (min-width: 400px)': { display: 'flex' } }}>
+              <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
+                [ {displayRole} : {user.name} ]
+              </span>
             </div>
           </div>
         </div>
@@ -128,14 +156,14 @@ function App() {
         )}
         {isDriver && (
           <>
-            <Link to="/driver-dashboard" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', padding: '12px 10px' }}>Dashboard</Link>
-            <Link to="/driver-entry" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', padding: '12px 10px' }}>Log Entry</Link>
-            <Link to="/drivers?tab=salary" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', padding: '12px 10px' }}>My Salary</Link>
+            <NavLink to="/driver-dashboard">Dashboard</NavLink>
+            <NavLink to="/driver-entry">Log Entry</NavLink>
+            <NavLink to="/drivers?tab=salary">My Salary</NavLink>
           </>
         )}
         {isFarmer && (
           <>
-            <Link to="/farmer-view" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', padding: '12px 10px' }}>My Bills</Link>
+            <NavLink to="/farmer-view">My Bills</NavLink>
           </>
         )}
       </nav>
@@ -145,28 +173,28 @@ function App() {
         <div className="close-btn" onClick={closeMenu}>✕</div>
         {isAdmin && (
           <>
-            <Link to="/dashboard" onClick={closeMenu}>Dashboard</Link>
-            <Link to="/harvester" onClick={closeMenu}>Harvester</Link>
-            <Link to="/rental" onClick={closeMenu}>Rental</Link>
-            <Link to="/finance" onClick={closeMenu}>Finance</Link>
-            <Link to="/expenses" onClick={closeMenu}>Expenses</Link>
-            <Link to="/own-farm-income" onClick={closeMenu}>Own Farm</Link>
-            <Link to="/farmers" onClick={closeMenu}>Farmers</Link>
-            <Link to="/drivers" onClick={closeMenu}>Drivers</Link>
-            <Link to="/workers" onClick={closeMenu}>Workers</Link>
-            <Link to="/system" onClick={closeMenu}>System (அமைப்பு)</Link>
+            <MobileNavLink to="/dashboard" onClick={closeMenu}>Dashboard</MobileNavLink>
+            <MobileNavLink to="/harvester" onClick={closeMenu}>Harvester</MobileNavLink>
+            <MobileNavLink to="/rental" onClick={closeMenu}>Rental</MobileNavLink>
+            <MobileNavLink to="/finance" onClick={closeMenu}>Finance</MobileNavLink>
+            <MobileNavLink to="/expenses" onClick={closeMenu}>Expenses</MobileNavLink>
+            <MobileNavLink to="/own-farm-income" onClick={closeMenu}>Own Farm</MobileNavLink>
+            <MobileNavLink to="/farmers" onClick={closeMenu}>Farmers</MobileNavLink>
+            <MobileNavLink to="/drivers" onClick={closeMenu}>Drivers</MobileNavLink>
+            <MobileNavLink to="/workers" onClick={closeMenu}>Workers</MobileNavLink>
+            <MobileNavLink to="/system" onClick={closeMenu}>System (அமைப்பு)</MobileNavLink>
           </>
         )}
         {isDriver && (
           <>
-            <Link to="/driver-dashboard" onClick={closeMenu}>Dashboard</Link>
-            <Link to="/driver-entry" onClick={closeMenu}>Log Entry</Link>
-            <Link to="/drivers?tab=salary" onClick={closeMenu}>My Salary</Link>
+            <MobileNavLink to="/driver-dashboard" onClick={closeMenu}>Dashboard</MobileNavLink>
+            <MobileNavLink to="/driver-entry" onClick={closeMenu}>Log Entry</MobileNavLink>
+            <MobileNavLink to="/drivers?tab=salary" onClick={closeMenu}>My Salary</MobileNavLink>
           </>
         )}
         {isFarmer && (
           <>
-            <Link to="/farmer-view" onClick={closeMenu}>My Bills</Link>
+            <MobileNavLink to="/farmer-view" onClick={closeMenu}>My Bills</MobileNavLink>
           </>
         )}
       </div>

@@ -154,9 +154,27 @@ class AuthFactory {
     const jwt = require('jsonwebtoken');
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'smartuzhavan-secret-key-2024');
-      const user = await User.findById(decoded.id);
+      let user = null;
+
+      if (decoded.role === 'DRIVER') {
+        const Driver = require('../models/Driver');
+        user = await Driver.findById(decoded.id);
+        if (user) {
+            user.role = 'DRIVER'; // ensure role is attached
+            user.isActive = user.active !== false; // Map active field
+        }
+      } else if (decoded.role === 'FARMER') {
+        const Farmer = require('../models/Farmer');
+        user = await Farmer.findById(decoded.id);
+        if (user) {
+            user.role = 'FARMER';
+            user.isActive = !user.isDeleted;
+        }
+      } else {
+        user = await User.findById(decoded.id);
+      }
       
-      if (!user || !user.isActive) {
+      if (!user || user.isActive === false) {
         throw { statusCode: 401, message: 'User not found or inactive' };
       }
 

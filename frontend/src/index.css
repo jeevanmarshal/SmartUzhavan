@@ -55,3 +55,73 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   text-align: center;
 }
+
+/* Responsive Navigation */
+.desktop-nav {
+  display: flex;
+  padding: 0 15px;
+  background: #2D3748;
+  gap: 5px;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-bottom: 1px solid #4A5568;
+}
+
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.mobile-nav-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none;
+  }
+  
+  .hamburger-btn {
+    display: block;
+  }
+  
+  .mobile-nav-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 250px;
+    height: 100vh;
+    background: #1B3A6B;
+    z-index: 1000;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+  }
+  
+  .mobile-nav-overlay.open {
+    transform: translateX(0);
+  }
+  
+  .mobile-nav-overlay a {
+    display: block;
+    color: white;
+    padding: 15px 20px;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  .mobile-nav-overlay .close-btn {
+    text-align: right;
+    padding: 15px;
+    font-size: 1.5rem;
+    color: white;
+    cursor: pointer;
+  }
+}

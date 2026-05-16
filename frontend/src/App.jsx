@@ -18,12 +18,13 @@ import { DataProvider } from './context/DataContext';
 import Signup from './pages/Signup';
 import { apiService } from './services/api';
 
-const NavLink = ({ to, children }) => {
+const NavLink = ({ to, children, onClick }) => {
   const location = useLocation();
   const isActive = location.pathname.startsWith(to);
   return (
     <Link 
       to={to} 
+      onClick={onClick}
       style={{ 
         color: 'white', 
         textDecoration: 'none', 
@@ -42,6 +43,7 @@ const NavLink = ({ to, children }) => {
 };
 
 function App() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('su_session');
     return saved ? JSON.parse(saved) : null;
@@ -57,6 +59,9 @@ function App() {
     localStorage.removeItem('su_session');
     localStorage.removeItem('authToken');
   };
+
+  const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const closeMenu = () => setIsMobileMenuOpen(false);
 
   if (!user) {
     return (
@@ -79,11 +84,13 @@ function App() {
     <DataProvider>
       <Router>
       <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>
-          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontWeight: '600', color: 'white' }}>{user.name}</span>
-            <span>{user.role}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', display: 'none', '@media (min-width: 400px)': { display: 'flex' } }}>
+              <span style={{ fontWeight: '600', color: 'white' }}>{user.name}</span>
+            </div>
           </div>
         </div>
         <button 
@@ -103,15 +110,8 @@ function App() {
         </button>
       </header>
 
-      <nav style={{ 
-        padding: '0 15px', 
-        background: '#2D3748', 
-        display: 'flex', 
-        gap: '5px', 
-        overflowX: 'auto', 
-        whiteSpace: 'nowrap',
-        borderBottom: '1px solid #4A5568'
-      }}>
+      {/* Desktop Navigation */}
+      <nav className="desktop-nav">
         {isAdmin && (
           <>
             <NavLink to="/dashboard">Dashboard</NavLink>
@@ -128,17 +128,48 @@ function App() {
         )}
         {isDriver && (
           <>
-            <Link to="/driver-dashboard" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Dashboard</Link>
-            <Link to="/driver-entry" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>Log Entry</Link>
-            <Link to="/drivers?tab=salary" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>My Salary</Link>
+            <Link to="/driver-dashboard" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', padding: '12px 10px' }}>Dashboard</Link>
+            <Link to="/driver-entry" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', padding: '12px 10px' }}>Log Entry</Link>
+            <Link to="/drivers?tab=salary" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', padding: '12px 10px' }}>My Salary</Link>
           </>
         )}
         {isFarmer && (
           <>
-            <Link to="/farmer-view" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem' }}>My Bills</Link>
+            <Link to="/farmer-view" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', padding: '12px 10px' }}>My Bills</Link>
           </>
         )}
       </nav>
+
+      {/* Mobile Navigation Overlay */}
+      <div className={`mobile-nav-overlay ${isMobileMenuOpen ? 'open' : ''}`}>
+        <div className="close-btn" onClick={closeMenu}>✕</div>
+        {isAdmin && (
+          <>
+            <Link to="/dashboard" onClick={closeMenu}>Dashboard</Link>
+            <Link to="/harvester" onClick={closeMenu}>Harvester</Link>
+            <Link to="/rental" onClick={closeMenu}>Rental</Link>
+            <Link to="/finance" onClick={closeMenu}>Finance</Link>
+            <Link to="/expenses" onClick={closeMenu}>Expenses</Link>
+            <Link to="/own-farm-income" onClick={closeMenu}>Own Farm</Link>
+            <Link to="/farmers" onClick={closeMenu}>Farmers</Link>
+            <Link to="/drivers" onClick={closeMenu}>Drivers</Link>
+            <Link to="/workers" onClick={closeMenu}>Workers</Link>
+            <Link to="/system" onClick={closeMenu}>System (அமைப்பு)</Link>
+          </>
+        )}
+        {isDriver && (
+          <>
+            <Link to="/driver-dashboard" onClick={closeMenu}>Dashboard</Link>
+            <Link to="/driver-entry" onClick={closeMenu}>Log Entry</Link>
+            <Link to="/drivers?tab=salary" onClick={closeMenu}>My Salary</Link>
+          </>
+        )}
+        {isFarmer && (
+          <>
+            <Link to="/farmer-view" onClick={closeMenu}>My Bills</Link>
+          </>
+        )}
+      </div>
 
       <Routes>
         {isAdmin && (

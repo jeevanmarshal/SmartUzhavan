@@ -40,14 +40,16 @@ const Dashboard = () => {
 
   return (
     <div className="app-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <h1>நிர்வாக மேலாண்மை (Executive Dashboard)</h1>
-          {appStatus === 'offline_network' && <span style={{ background: '#E53E3E', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>OFFLINE</span>}
-          {appStatus === 'offline_server' && <span style={{ background: '#D69E2E', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>SERVER OFFLINE</span>}
-          {appStatus === 'online' && <span style={{ background: '#38A169', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>LIVE</span>}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 5vw, 28px)' }}>நிர்வாக மேலாண்மை (Executive Dashboard)</h1>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            {appStatus === 'offline_network' && <span style={{ background: '#E53E3E', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>OFFLINE</span>}
+            {appStatus === 'offline_server' && <span style={{ background: '#D69E2E', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>SERVER OFFLINE</span>}
+            {appStatus === 'online' && <span style={{ background: '#38A169', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>LIVE</span>}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button onClick={refreshDashboard} style={{ padding: '8px', borderRadius: '4px', background: '#E2E8F0', border: '1px solid #CBD5E0', cursor: 'pointer' }}>Refresh</button>
           <select value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: '8px', borderRadius: '4px' }}>
             {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}

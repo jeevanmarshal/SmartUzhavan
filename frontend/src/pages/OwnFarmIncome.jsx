@@ -56,6 +56,36 @@ const OwnFarmIncome = () => {
     setFormData(prev => ({ ...prev, totalIncome: total }));
   }, [formData.incomeSource, formData.numberOfBags, formData.pricePerBag, formData.numberOfBundles, formData.pricePerBundle]);
 
+  const [editingId, setEditingId] = useState(null);
+
+  const handleEdit = (entry) => {
+    setEditingId(entry._id);
+    setFormData({
+      date: entry.date ? new Date(entry.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      incomeSource: entry.incomeSource,
+      numberOfBags: entry.numberOfBags || 0,
+      pricePerBag: entry.pricePerBag || 0,
+      numberOfBundles: entry.numberOfBundles || 0,
+      pricePerBundle: entry.pricePerBundle || 0,
+      totalIncome: entry.totalIncome || 0,
+      description: entry.description || '',
+      source: entry.source || 'own_farm'
+    });
+    setShowAddForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this record? (இந்த பதிவை நீக்க வேண்டுமா?)')) {
+      try {
+        await apiService.deleteOwnFarmIncome(id);
+        await refreshData();
+      } catch (err) {
+        alert('Failed to delete record: ' + err.message);
+      }
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     const entry = {
@@ -64,13 +94,18 @@ const OwnFarmIncome = () => {
     };
     
     try {
-      await apiService.createOwnFarmIncome(entry);
+      if (editingId) {
+        await apiService.updateOwnFarmIncome(editingId, entry);
+      } else {
+        await apiService.createOwnFarmIncome(entry);
+      }
       await refreshData();
       
       setShowAddForm(false);
+      setEditingId(null);
       setFormData({ date: new Date().toISOString().split('T')[0], incomeSource: 'paddy', numberOfBags: 0, pricePerBag: 0, numberOfBundles: 0, pricePerBundle: 0, totalIncome: 0, description: '', source: 'own_farm' });
     } catch (err) {
-      setError(err.message || 'Failed to add income record');
+      setError(err.message || 'Failed to save income record');
       setTimeout(() => setError(''), 5000);
     }
   };
@@ -79,7 +114,11 @@ const OwnFarmIncome = () => {
     <div className="app-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h1>சொந்த விவசாய வருமானம் (Own Farm Income)</h1>
-        {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ New Sale</Button>}
+        {!showAddForm && <Button onClick={() => {
+            setEditingId(null);
+            setFormData({ date: new Date().toISOString().split('T')[0], incomeSource: 'paddy', numberOfBags: 0, pricePerBag: 0, numberOfBundles: 0, pricePerBundle: 0, totalIncome: 0, description: '', source: 'own_farm' });
+            setShowAddForm(true);
+        }}>+ New Sale</Button>}
       </div>
 
       {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
@@ -138,7 +177,13 @@ const OwnFarmIncome = () => {
                   {new Date(entry.date).toLocaleDateString()} | {entry.incomeSource === 'vaikool' ? `${entry.numberOfBundles} கட்டுகள்` : `${entry.numberOfBags} மூட்டைகள்`}
                 </div>
               </div>
-              <div style={{ fontWeight: 'bold', color: '#1A6B55' }}>{formatCurrency(entry.totalIncome)}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+                <div style={{ fontWeight: 'bold', color: '#1A6B55' }}>{formatCurrency(entry.totalIncome)}</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleEdit(entry)} style={{ background: 'none', border: 'none', color: '#1A6B55', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem' }}>Edit</button>
+                  <button onClick={() => handleDelete(entry._id)} style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem' }}>Delete</button>
+                </div>
+              </div>
             </div>
             {entry.description && <div style={{ fontSize: '0.75rem', marginTop: '5px', color: '#718096' }}>{entry.description}</div>}
           </div>

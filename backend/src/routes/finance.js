@@ -25,6 +25,11 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
     const jobs = await HarvesterJob.find({ isDeleted: false });
     const harvestIncome = jobs.reduce((sum, j) => sum + (j.finalAmount || 0), 0);
 
+    // 2.5 Get Own Farm Income
+    const OwnFarmIncome = require('../models/OwnFarmIncome');
+    const ownFarmIncomes = await OwnFarmIncome.find({ isDeleted: false });
+    const ownFarmRev = ownFarmIncomes.reduce((sum, i) => sum + (i.total_amount || 0), 0);
+
     // 3. Get total expenses (Business Expenses + Lending Outflow)
     const expenses = await Expense.find({ isDeleted: false });
     const businessExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -32,7 +37,7 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
     const lendingOutflow = records.reduce((sum, r) => sum + (r.amount || 0), 0);
     
     const totalExpense = businessExpenses + lendingOutflow;
-    const totalIncome = lendingIncome + harvestIncome;
+    const totalIncome = lendingIncome + harvestIncome + ownFarmRev;
 
     res.success({
       totalIncome,
@@ -40,6 +45,7 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
       netProfit: totalIncome - totalExpense,
       lendingIncome,
       harvestIncome,
+      ownFarmRev,
       lastUpdated: new Date()
     }, 'Financial summary retrieved');
   } catch (error) {

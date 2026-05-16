@@ -30,14 +30,34 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
     const ownFarmIncomes = await OwnFarmIncome.find({ isDeleted: false });
     const ownFarmRev = ownFarmIncomes.reduce((sum, i) => sum + (i.total_amount || 0), 0);
 
+    // 2.6 Get Rental Revenue
+    const Rental = require('../models/Rental');
+    const rentals = await Rental.find({ isDeleted: false });
+    const rentalRev = rentals.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+
     // 3. Get total expenses (Business Expenses + Lending Outflow)
     const expenses = await Expense.find({ isDeleted: false });
     const businessExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const generalExpenses = businessExpenses;
     
     const lendingOutflow = records.reduce((sum, r) => sum + (r.amount || 0), 0);
     
-    const totalExpense = businessExpenses + lendingOutflow;
-    const totalIncome = lendingIncome + harvestIncome + ownFarmRev;
+    // 3.1 Get Worker Wages
+    const WorkerRecord = require('../models/WorkerRecord');
+    const workerRecords = await WorkerRecord.find({ isDeleted: false });
+    const workerWages = workerRecords.reduce((sum, w) => sum + (w.total_amount || 0), 0);
+
+    // 3.2 Get Driver Salaries & Job Expenses (Diesel)
+    const DriverLog = require('../models/DriverLog');
+    const driverLogs = await DriverLog.find({ isDeleted: false });
+    const driverSalaries = driverLogs.reduce((sum, log) => {
+        const paymentsTotal = (log.payments || []).reduce((pSum, p) => pSum + (p.amount || 0), 0);
+        return sum + paymentsTotal + (log.advance || 0); // Using payments as actual cash outflow
+    }, 0);
+    const jobExpenses = driverLogs.reduce((sum, log) => sum + (log.diesel?.totalCost || 0), 0);
+
+    const totalExpense = businessExpenses + lendingOutflow + workerWages + driverSalaries + jobExpenses;
+    const totalIncome = lendingIncome + harvestIncome + ownFarmRev + rentalRev;
 
     res.success({
       totalIncome,
@@ -46,6 +66,11 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
       lendingIncome,
       harvestIncome,
       ownFarmRev,
+      rentalRev,
+      driverSalaries,
+      workerWages,
+      generalExpenses,
+      jobExpenses,
       lastUpdated: new Date()
     }, 'Financial summary retrieved');
   } catch (error) {

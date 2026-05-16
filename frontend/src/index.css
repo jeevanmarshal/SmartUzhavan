@@ -127,14 +127,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .user-badge {
-  display: none;
-}
-
-@media (min-width: 400px) {
-  .user-badge {
-    display: flex;
-    flex-direction: column;
-    color: rgba(255,255,255,0.9);
-    font-size: 0.9rem;
-  }
+  display: flex;
+  flex-direction: column;
+  color: rgba(255,255,255,0.9);
+  font-size: 0.9rem;
 }

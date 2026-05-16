@@ -109,33 +109,35 @@ function App() {
   return (
     <DataProvider>
       <Router>
-      <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>
-            <div className="user-badge">
-              <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
-                [ {displayRole} : {user.name} ]
-              </span>
-            </div>
-          </div>
+          <span style={{ color: '#48BB78', fontWeight: '900', fontSize: '1.4rem', letterSpacing: '-0.5px' }}>SmartUzhavan</span>
         </div>
-        <button 
-          onClick={handleLogout}
-          style={{ 
-            background: 'rgba(255,255,255,0.1)', 
-            border: '1px solid rgba(255,255,255,0.2)', 
-            color: 'white', 
-            padding: '6px 14px', 
-            borderRadius: '6px', 
-            cursor: 'pointer', 
-            fontSize: '0.85rem',
-            transition: 'all 0.2s'
-          }}
-        >
-          Logout
-        </button>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div className="user-badge">
+            <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', fontSize: '0.85rem' }}>
+              [ {displayRole} : {user.name} ]
+            </span>
+          </div>
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              background: 'rgba(255,255,255,0.1)', 
+              border: '1px solid rgba(255,255,255,0.2)', 
+              color: 'white', 
+              padding: '6px 14px', 
+              borderRadius: '6px', 
+              cursor: 'pointer', 
+              fontSize: '0.85rem',
+              transition: 'all 0.2s',
+              order: 1
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       {/* Desktop Navigation */}

@@ -101,8 +101,8 @@ const DriverDashboard = ({ userId }) => {
   return (
     <div className="app-container">
       <div className="card" style={{ background: 'linear-gradient(135deg, #1B3A6B 0%, #2D3748 100%)', color: 'white', marginBottom: '20px' }}>
-        <h2 style={{ margin: 0 }}>வணக்கம், {driver?.name || 'Driver'}</h2>
-        <p style={{ opacity: 0.8, fontSize: '0.9rem' }}>ஓட்டுநர் மேலாண்மை பலகை (Driver Dashboard)</p>
+        <h2 style={{ margin: 0, color: 'white' }}>வணக்கம், {driver?.name || 'Driver'}</h2>
+        <p style={{ opacity: 0.8, fontSize: '0.9rem', color: 'white' }}>ஓட்டுநர் மேலாண்மை பலகை (Driver Dashboard)</p>
         
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
           <div>

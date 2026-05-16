@@ -49,10 +49,13 @@ router.post('/', isAuthenticated, auditLog('CREATE', 'Rental'), async (req, res)
     const mappedData = {
       ...req.body,
       equipment: req.body.equipment || req.body.machineType,
-      hours: req.body.hours || req.body.quantity,
-      ratePerHour: req.body.ratePerHour || req.body.ratePerUnit,
+      farmer_id: req.body.farmer_id || req.body.farmerId,
+      hours: parseFloat(req.body.hours || req.body.quantity || 0),
+      ratePerHour: parseFloat(req.body.ratePerHour || req.body.ratePerUnit || 0),
       startDate: req.body.startDate || req.body.date || new Date(),
     };
+
+    mappedData.totalAmount = parseFloat(req.body.totalAmount || req.body.totalPrice || (mappedData.hours * mappedData.ratePerHour) || 0);
 
     if (!mappedData.equipment || !mappedData.farmer_id) {
       return res.status(400).json({ success: false, message: 'Equipment and Farmer are required' });

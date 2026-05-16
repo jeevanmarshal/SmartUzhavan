@@ -1,38 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const OwnFarmIncome = require('../models/OwnFarmIncome');
-const { isAuthenticated } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const auditLog = require('../middleware/audit');
 
-// Middleware to standard format responses
-const sendResponse = (res, statusCode, data, meta = {}, pagination = null) => {
-  const response = {
-    success: statusCode >= 200 && statusCode < 300,
-    data,
-    meta: {
-      timestamp: new Date().toISOString(),
-      version: "v5.0",
-      ...meta
-    }
-  };
-  if (pagination) response.pagination = pagination;
-  return res.status(statusCode).json(response);
-};
-
-const sendError = (res, statusCode, code, message, details = {}) => {
-  return res.status(statusCode).json({
-    success: false,
-    error: {
-      code,
-      message,
-      details,
-      timestamp: new Date().toISOString()
-    }
-  });
-};
-
 // @route   POST /api/own-farm-income
-router.post('/', isAuthenticated, auditLog('CREATE', 'OwnFarmIncome'), async (req, res) => {
+router.post('/', authenticateToken, auditLog('CREATE', 'OwnFarmIncome'), async (req, res, next) => {
   try {
     // Normalization Layer for V3.1 Frontend Mapping
     const mappedData = {
@@ -41,7 +14,7 @@ router.post('/', isAuthenticated, auditLog('CREATE', 'OwnFarmIncome'), async (re
       quantity: req.body.quantity || req.body.numberOfBags || req.body.numberOfBundles || 0,
       price_per_unit: req.body.price_per_unit || req.body.pricePerBag || req.body.pricePerBundle || 0,
       total_amount: req.body.total_amount || req.body.totalIncome || 0,
-      createdBy: req.user?._id || req.session?.userId
+      createdBy: req.user?._id
     };
 
     const income = new OwnFarmIncome(mappedData);
@@ -52,15 +25,14 @@ router.post('/', isAuthenticated, auditLog('CREATE', 'OwnFarmIncome'), async (re
     }
     
     await income.save();
-    return sendResponse(res, 201, income);
+    return res.success(income, 'Income record created', 201);
   } catch (error) {
-    console.error(`Create own-farm error: ${error.message}`);
-    return sendError(res, 500, 'SERVER_ERROR', error.message || 'Server Error');
+    next(error);
   }
 });
 
 // @route   GET /api/own-farm-income
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', authenticateToken, async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -79,15 +51,16 @@ router.get('/', isAuthenticated, async (req, res) => {
       
     const total = await OwnFarmIncome.countDocuments(queryObj);
 
-    return sendResponse(res, 200, records, {}, { page, limit, total, pages: Math.ceil(total / limit) });
+    return res.success(records, 'Income records retrieved', 200, {
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    });
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   GET /api/own-farm-income/summary
-router.get('/summary/aggregate', isAuthenticated, async (req, res) => {
+router.get('/summary/aggregate', authenticateToken, async (req, res, next) => {
   try {
     const matchStage = { isDeleted: false };
     if (req.query.fromDate && req.query.toDate) {
@@ -104,42 +77,39 @@ router.get('/summary/aggregate', isAuthenticated, async (req, res) => {
         }
       }
     ]);
-    return sendResponse(res, 200, summary);
+    return res.success(summary, 'Income summary retrieved');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   PUT /api/own-farm-income/:id
-router.put('/:id', isAuthenticated, auditLog('UPDATE', 'OwnFarmIncome'), async (req, res) => {
+router.put('/:id', authenticateToken, auditLog('UPDATE', 'OwnFarmIncome'), async (req, res, next) => {
   try {
     const record = await OwnFarmIncome.findOne({ _id: req.params.id, isDeleted: false });
-    if (!record) return sendError(res, 404, 'NOT_FOUND', 'Record not found');
+    if (!record) return res.status(404).error('Record not found', 404);
 
     Object.assign(record, req.body);
-    await record.save(); // triggers total_amount calculation
+    await record.save();
 
-    return sendResponse(res, 200, record);
+    return res.success(record, 'Income record updated');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   DELETE /api/own-farm-income/:id
-router.delete('/:id', isAuthenticated, auditLog('DELETE', 'OwnFarmIncome'), async (req, res) => {
+router.delete('/:id', authenticateToken, auditLog('DELETE', 'OwnFarmIncome'), async (req, res, next) => {
   try {
     const record = await OwnFarmIncome.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
       { isDeleted: true },
       { new: true }
     );
-    if (!record) return sendError(res, 404, 'NOT_FOUND', 'Record not found');
-    return sendResponse(res, 200, { message: 'Record deleted successfully' });
+    if (!record) return res.status(404).error('Record not found', 404);
+    return res.success({ id: record._id }, 'Record deleted successfully');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 

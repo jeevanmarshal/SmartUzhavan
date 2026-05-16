@@ -1,120 +1,89 @@
 const express = require('express');
 const router = express.Router();
 const Settings = require('../models/Settings');
-const { isAuthenticated, isSuperAdmin } = require('../middleware/auth');
+const { authenticateToken, isSuperAdmin } = require('../middleware/auth');
 const auditLog = require('../middleware/audit');
 
-// Middleware to standard format responses
-const sendResponse = (res, statusCode, data, meta = {}) => {
-  return res.status(statusCode).json({
-    success: statusCode >= 200 && statusCode < 300,
-    data,
-    meta: {
-      timestamp: new Date().toISOString(),
-      version: "v5.0",
-      ...meta
-    }
-  });
-};
-
-const sendError = (res, statusCode, code, message, details = {}) => {
-  return res.status(statusCode).json({
-    success: false,
-    error: {
-      code,
-      message,
-      details,
-      timestamp: new Date().toISOString()
-    }
-  });
-};
-
 // @route   GET /api/settings
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', authenticateToken, async (req, res, next) => {
   try {
     const settings = await Settings.find({});
-    return sendResponse(res, 200, settings);
+    return res.success(settings, 'Settings retrieved');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   GET /api/settings/prices
-router.get('/prices', isAuthenticated, async (req, res) => {
+router.get('/prices', authenticateToken, async (req, res, next) => {
   try {
     const prices = await Settings.find({ type: 'prices' });
-    return sendResponse(res, 200, prices);
+    return res.success(prices, 'Price settings retrieved');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   GET /api/settings/categories
-router.get('/categories', isAuthenticated, async (req, res) => {
+router.get('/categories', authenticateToken, async (req, res, next) => {
   try {
     const categories = await Settings.find({ type: 'categories' });
-    return sendResponse(res, 200, categories);
+    return res.success(categories, 'Category settings retrieved');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   GET /api/settings/work-types
-router.get('/work-types', isAuthenticated, async (req, res) => {
+router.get('/work-types', authenticateToken, async (req, res, next) => {
   try {
     const workTypes = await Settings.find({ type: 'work_types' });
-    return sendResponse(res, 200, workTypes);
+    return res.success(workTypes, 'Work type settings retrieved');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   GET /api/settings/pricing
-router.get('/pricing', isAuthenticated, async (req, res) => {
+router.get('/pricing', authenticateToken, async (req, res, next) => {
   try {
     const settings = await Settings.findOne({ key: 'pricing' });
     if (!settings) {
       // Return default if not set
-      return sendResponse(res, 200, {
+      return res.success({
         diesel: { pricePerLitre: 80 },
         harvester: { tyre: 2500, track: 3500 },
         rentals: {}
-      });
+      }, 'Default pricing returned');
     }
-    return sendResponse(res, 200, settings.value || settings);
+    return res.success(settings.value || settings, 'Pricing settings retrieved');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   PUT /api/settings/pricing
-router.put('/pricing', isAuthenticated, isSuperAdmin, auditLog('UPDATE', 'Settings'), async (req, res) => {
+router.put('/pricing', authenticateToken, isSuperAdmin, auditLog('UPDATE', 'Settings'), async (req, res, next) => {
   try {
     const setting = await Settings.findOneAndUpdate(
       { key: 'pricing' },
       { $set: { value: req.body, lastUpdatedBy: req.user._id } },
       { new: true, upsert: true }
     );
-    return sendResponse(res, 200, setting.value);
+    return res.success(setting.value, 'Pricing settings updated');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 
 // @route   PUT /api/settings/:key
 // @desc    Update setting or create if not exists
-router.put('/:key', isAuthenticated, isSuperAdmin, auditLog('UPDATE', 'Settings'), async (req, res) => {
+router.put('/:key', authenticateToken, isSuperAdmin, auditLog('UPDATE', 'Settings'), async (req, res, next) => {
   try {
     const { key } = req.params;
     const updateData = {
       ...req.body,
-      lastUpdatedBy: req.user?._id || req.session?.userId
+      lastUpdatedBy: req.user?._id
     };
 
     const setting = await Settings.findOneAndUpdate(
@@ -123,10 +92,9 @@ router.put('/:key', isAuthenticated, isSuperAdmin, auditLog('UPDATE', 'Settings'
       { new: true, upsert: true, runValidators: true }
     );
     
-    return sendResponse(res, 200, setting);
+    return res.success(setting, 'Setting updated successfully');
   } catch (error) {
-    console.error(error);
-    return sendError(res, 500, 'SERVER_ERROR', 'Server Error');
+    next(error);
   }
 });
 

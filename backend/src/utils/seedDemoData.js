@@ -87,6 +87,7 @@ const seedDemoData = async () => {
 
     console.log('Seeding Farmers...');
     const farmers = await Farmer.insertMany([
+      { name: 'AGENT_TEST_FARMER', phone: '9999999999', village: 'TEST_VILLAGE', landArea: 1, crops: ['Test'], soilType: 'other', createdBy: adminId },
       { name: 'Ramasamy', phone: '9443322110', village: 'Kunnathur', landArea: 5.5, crops: ['Paddy'], soilType: 'black soil', createdBy: adminId },
       { name: 'Palanisamy', phone: '9443322111', village: 'Chennimalai', landArea: 3.2, crops: ['Turmeric'], soilType: 'red soil', createdBy: adminId }
     ]);

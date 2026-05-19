@@ -10,10 +10,20 @@ const envPath = path.join(__dirname, `../../.env.${nodeEnv}`);
 const defaultEnvPath = path.join(__dirname, '../../.env');
 
 // First load environment-specific variables
-dotenv.config({ path: envPath });
+const resultEnv = dotenv.config({ path: envPath });
+if (resultEnv.error) {
+  logger.warn(`[Configuration] Environment-specific file not loaded from ${envPath}: ${resultEnv.error.message}`);
+} else {
+  logger.info(`[Configuration] Loaded environment-specific variables from ${envPath}`);
+}
 
 // Then load the fallback/default standard .env variables
-dotenv.config({ path: defaultEnvPath });
+const resultDefault = dotenv.config({ path: defaultEnvPath });
+if (resultDefault.error) {
+  logger.warn(`[Configuration] Default standard .env file not loaded from ${defaultEnvPath}: ${resultDefault.error.message}`);
+} else {
+  logger.info(`[Configuration] Loaded default standard variables from ${defaultEnvPath}`);
+}
 
 // Define critical environment variables required for server startup
 const requiredEnv = [
@@ -22,7 +32,10 @@ const requiredEnv = [
   'SESSION_SECRET'
 ];
 
-const missingEnv = requiredEnv.filter(envVar => !process.env[envVar]);
+const missingEnv = requiredEnv.filter(envVar => {
+  const val = process.env[envVar];
+  return !val || val.trim() === '';
+});
 
 if (missingEnv.length > 0) {
   const errorMsg = `\n❌ [STARTUP FAILURE] Missing critical environment variables: \n   ${missingEnv.join(', ')}\n\nPlease check your .env file or environment settings to ensure these are set.\n`;

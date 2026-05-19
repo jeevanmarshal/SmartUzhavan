@@ -20,7 +20,11 @@ const DriverEntry = ({ userId }) => {
 
   const { execute: fetchFarmers } = useAPI(apiService.getFarmers.bind(apiService));
   const { execute: fetchDrivers } = useAPI(apiService.getDrivers.bind(apiService));
-  const { execute: fetchLogs } = useAPI(apiService.getAllDriverSalaries.bind(apiService));
+  const { execute: fetchLogs } = useAPI(
+    userId 
+      ? () => apiService.getDriverSalaries(userId) 
+      : apiService.getAllDriverSalaries.bind(apiService)
+  );
   const { execute: fetchJobs } = useAPI(apiService.getHarvesterJobs.bind(apiService));
   const { execute: fetchSettings } = useAPI(apiService.getPricingConfig.bind(apiService));
 
@@ -54,19 +58,25 @@ const DriverEntry = ({ userId }) => {
 
   const refreshData = async () => {
     try {
-      const [fData, dData, lData, jData, sData] = await Promise.all([
+      const [fData, dData, lData, jData, sData] = await Promise.allSettled([
         fetchFarmers(), fetchDrivers(), fetchLogs(), fetchJobs(), fetchSettings()
       ]);
-      setFarmers(fData?.data || fData || []);
-      setDrivers(dData?.data || dData || []);
       
-      const logsArray = lData?.data || lData || [];
+      const farmersList = fData.status === 'fulfilled' ? (fData.value?.data || fData.value || []) : [];
+      setFarmers(farmersList);
+      
+      const driversList = dData.status === 'fulfilled' ? (dData.value?.data || dData.value || []) : [];
+      setDrivers(driversList);
+      
+      const logsArray = lData.status === 'fulfilled' ? (lData.value?.data || lData.value || []) : [];
       setLogs(logsArray);
       setAllLogs(logsArray);
       
-      setJobs(jData?.data || jData || []);
+      const jobsList = jData.status === 'fulfilled' ? (jData.value?.data || jData.value || []) : [];
+      setJobs(jobsList);
 
-      const price = sData?.diesel?.pricePerLitre || sData?.pricing?.diesel?.pricePerLitre || sData?.data?.pricing?.diesel?.pricePerLitre || 80;
+      const sDataVal = sData.status === 'fulfilled' ? sData.value : null;
+      const price = sDataVal?.diesel?.pricePerLitre || sDataVal?.pricing?.diesel?.pricePerLitre || sDataVal?.data?.pricing?.diesel?.pricePerLitre || 80;
       setDieselPrice(price);
       
       if (!editingLog) {

@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
+  id: {
+    type: String,
+    required: false
+  },
   amount: {
     type: Number,
     required: true,
@@ -13,10 +17,18 @@ const paymentSchema = new mongoose.Schema({
   },
   method: {
     type: String,
-    enum: ['cash', 'upi', 'bank_transfer', 'other'],
+    enum: ['cash', 'upi', 'bank_transfer', 'other', 'bank'],
     default: 'cash'
+  },
+  mode: {
+    type: String,
+    default: 'cash'
+  },
+  notes: {
+    type: String,
+    default: ''
   }
-});
+}, { _id: false });
 
 const rentalSchema = new mongoose.Schema({
   farmer_id: {

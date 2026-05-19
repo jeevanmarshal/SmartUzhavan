@@ -174,3 +174,21 @@ h1, h2, h3, h4, h5, h6 {
     order: 1;
   }
 }
+
+/* Responsive role selection text layout helpers */
+.desktop-text {
+  display: block;
+}
+.mobile-text {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .desktop-text {
+    display: none;
+  }
+  .mobile-text {
+    display: block;
+  }
+}
+

@@ -85,7 +85,12 @@ const Login = ({ onLogin }) => {
             lineHeight: '1.5',
             fontWeight: '400'
           }}>
-            பயன்பாட்டைத் தொடங்க உங்கள் பங்கைத் தேர்ந்தெடுக்கவும் (Select your role to begin)
+            <span className="desktop-text">
+              பயன்பாட்டைத் தொடங்க உங்கள் பங்கைத் தேர்ந்தெடுக்கவும் <br /> (Select your role to begin)
+            </span>
+            <span className="mobile-text">
+              பயன்பாட்டைத் தொடங்க <br /> உங்கள் பங்கைத் தேர்ந்தெடுக்கவும் <br /> (Select your role to begin)
+            </span>
           </p>
 
           {/* ROLE SELECTION CARDS */}

@@ -139,14 +139,14 @@ router.post('/:id/link-logs', authenticateToken, async (req, res, next) => {
     // 2. Unlink any driver logs that were previously linked to this job but are not in the new logIds list
     await DriverLog.updateMany(
       { linkedJobId: jobId, _id: { $nin: logIds } },
-      { $unset: { linkedJobId: "" } }
+      { $unset: { linkedJobId: "" }, $set: { status: 'submitted' } }
     );
 
     // 3. Link the new driver logs to this job
     if (logIds && logIds.length > 0) {
       await DriverLog.updateMany(
         { _id: { $in: logIds } },
-        { $set: { linkedJobId: jobId } }
+        { $set: { linkedJobId: jobId, status: 'approved' } }
       );
     }
 

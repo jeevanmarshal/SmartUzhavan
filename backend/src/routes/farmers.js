@@ -50,7 +50,7 @@ router.post('/',
   [
     body('name').isLength({ min: 2, max: 100 }),
     body('village').isLength({ min: 2, max: 50 }),
-    body('landArea').isFloat({ min: 0.01 }),
+    body('landArea').optional().isFloat({ min: 0.01 }),
     body('phone').optional().matches(/^(\+91)?[6-9]\d{9}$/),
   ],
   async (req, res, next) => {

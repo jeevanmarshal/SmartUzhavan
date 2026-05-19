@@ -27,7 +27,7 @@ const farmerSchema = new mongoose.Schema({
   
   landArea: {
     type: Number,
-    required: [true, 'Land area is required'],
+    default: 1.0,
     min: [0.01, 'Land area must be greater than 0'],
     set: (val) => Math.round(val * 100) / 100
   },
@@ -78,16 +78,64 @@ const farmerSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
     index: true
+  },
+  
+  farmerId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+    index: true
+  },
+  
+  description: {
+    type: String,
+    trim: true,
+    default: ''
   }
 });
 
 // Create text indexes
-farmerSchema.index({ name: 'text', village: 'text', phone: 'text' });
+farmerSchema.index({ name: 'text', village: 'text', phone: 'text', farmerId: 'text' });
 
 // Exclude deleted from queries
 farmerSchema.pre(/^find/, function(next) {
   if (this.options._recursed) return next();
   this.find({ isDeleted: false });
+  next();
+});
+
+// Pre-save hook to automatically generate farmerId
+farmerSchema.pre('save', async function(next) {
+  if (!this.farmerId) {
+    try {
+      // 1. Get first three letters of uppercase village name, clean any special characters
+      const cleanedVillage = (this.village || '').trim().replace(/[^a-zA-Z]/g, '').toUpperCase();
+      const prefix = cleanedVillage.substring(0, 3).padEnd(3, 'X');
+      const searchPattern = new RegExp(`^F-${prefix}-\\d{3}$`);
+
+      // 2. Query the DB to find the highest existing suffix for this pattern
+      const highestFarmer = await this.constructor.findOne(
+        { farmerId: searchPattern },
+        { farmerId: 1 },
+        { sort: { farmerId: -1 } }
+      ).exec();
+
+      let nextNumber = 1;
+      if (highestFarmer && highestFarmer.farmerId) {
+        const parts = highestFarmer.farmerId.split('-');
+        const lastNum = parseInt(parts[2], 10);
+        if (!isNaN(lastNum)) {
+          nextNumber = lastNum + 1;
+        }
+      }
+
+      const suffix = String(nextNumber).padStart(3, '0');
+      this.farmerId = `F-${prefix}-${suffix}`;
+    } catch (err) {
+      return next(err);
+    }
+  }
   next();
 });
 

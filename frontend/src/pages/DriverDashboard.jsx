@@ -64,10 +64,15 @@ const DriverDashboard = ({ userId }) => {
     });
 
     const filteredData = filterData(logsAndSalaries);
+ 
+    const approvedLogs = filteredData.filter(l => l.status === 'approved' || l.status === 'paid');
+    const unapprovedLogs = filteredData.filter(l => l.status === 'submitted' || !l.status);
 
-    const totalHours = filteredData.reduce((sum, l) => sum + (l.totalDuration || l.totalHours || 0), 0);
+    const approvedHours = approvedLogs.reduce((sum, l) => sum + (l.totalDuration || l.totalHours || 0), 0);
+    const unapprovedHours = unapprovedLogs.reduce((sum, l) => sum + (l.totalDuration || l.totalHours || 0), 0);
+    const totalHours = approvedHours + unapprovedHours;
     const uniqueDays = new Set(filteredData.map(l => new Date(l.date).toDateString())).size;
-
+ 
     const earned = filteredData.reduce((sum, s) => {
       // Fallback to baseSalary if netPay is undefined
       const net = s.netPay !== undefined ? s.netPay : ((s.baseSalary || 0) + (s.bonus || 0) + (s.extraAmount || 0) - (s.advance || 0));
@@ -76,14 +81,16 @@ const DriverDashboard = ({ userId }) => {
     const bonus = filteredData.reduce((sum, s) => sum + (parseFloat(s.bonus) || 0), 0);
     const extra = filteredData.reduce((sum, s) => sum + (parseFloat(s.extraAmount) || 0), 0);
     const advance = filteredData.reduce((sum, s) => sum + (parseFloat(s.advance) || 0), 0);
-
+ 
     const received = filteredData.reduce((sum, s) => {
       const paid = (s.payments || []).reduce((pSum, p) => pSum + p.amount, 0);
       return sum + paid;
     }, 0);
-
+ 
     return {
       totalHours,
+      approvedHours,
+      unapprovedHours,
       daysWorked: uniqueDays,
       totalEarned: earned,
       totalReceived: received,
@@ -106,14 +113,18 @@ const DriverDashboard = ({ userId }) => {
           ஓட்டுநர் மேலாண்மை பலகை <br /> (Driver Dashboard)
         </p>
 
-        <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+        <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Total Hours Worked</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.totalHours.toFixed(2)}</div>
+            <div style={{ fontSize: '0.72rem', opacity: 0.85, lineHeight: '1.2' }}>Approved Hours<br/>(அங்கீகரிக்கப்பட்டது)</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#48BB78', marginTop: '4px' }}>{stats.approvedHours.toFixed(2)}</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Total Days Worked</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.daysWorked}</div>
+            <div style={{ fontSize: '0.72rem', opacity: 0.85, lineHeight: '1.2' }}>Unapproved Hours<br/>(அங்கீகரிக்கப்படாதது)</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ECC94B', marginTop: '4px' }}>{stats.unapprovedHours.toFixed(2)}</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '0.72rem', opacity: 0.85, lineHeight: '1.2' }}>Days Worked<br/>(வேலை நாட்கள்)</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'white', marginTop: '4px' }}>{stats.daysWorked}</div>
           </div>
         </div>
       </div>

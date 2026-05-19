@@ -104,7 +104,7 @@ function App() {
   const isFarmer = role === 'FARMER';
   
   // Format role name for display
-  const displayRole = isAdmin ? 'Admin' : isDriver ? 'Driver' : isFarmer ? 'Farmer' : role;
+  const displayRole = role === 'SUPER_ADMIN' ? 'Super Admin' : isAdmin ? 'Admin' : isDriver ? 'Driver' : isFarmer ? 'Farmer' : role;
 
   return (
     <DataProvider>

@@ -20,7 +20,8 @@ const Farmers = () => {
     name: '',
     village: '',
     phone: '',
-    type: 'external'
+    type: 'external',
+    description: ''
   });
 
   const refreshData = async () => {
@@ -54,7 +55,7 @@ const Farmers = () => {
       
       await refreshData();
       setShowAddForm(false);
-      setFormData({ name: '', village: '', phone: '', type: 'external' });
+      setFormData({ name: '', village: '', phone: '', type: 'external', description: '' });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -72,7 +73,8 @@ const Farmers = () => {
       name: farmer.name,
       village: farmer.village,
       phone: farmer.phone || '',
-      type: farmer.type || 'external'
+      type: farmer.type || 'external',
+      description: farmer.description || ''
     });
     setEditingFarmer(farmer);
     setShowAddForm(true);
@@ -118,6 +120,10 @@ const Farmers = () => {
             english="Phone" tamil="தொலைபேசி" type="tel" value={formData.phone}
             onChange={(e) => setFormData({...formData, phone: e.target.value})}
           />
+          <InputField 
+            english="Description (Optional)" tamil="குறிப்பு / விவரம்" value={formData.description}
+            onChange={(e) => setFormData({...formData, description: e.target.value})}
+          />
           <SelectField 
             english="Type" tamil="வகை"
             options={[
@@ -138,10 +144,20 @@ const Farmers = () => {
       <div className="list-container">
         {farmers.map(farmer => (
           <div key={farmer._id} className="card" style={{ padding: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontWeight: '700' }}>{farmer.name}</div>
-                <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>{farmer.village} | {farmer.phone || 'No Phone'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.75rem', background: '#E2E8F0', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', color: '#4A5568' }}>
+                    {farmer.farmerId || 'No ID'}
+                  </span>
+                  <div style={{ fontWeight: '700' }}>{farmer.name}</div>
+                </div>
+                <div style={{ fontSize: '0.9rem', color: '#4a5568', marginTop: '4px' }}>{farmer.village} | {farmer.phone || 'No Phone'}</div>
+                {farmer.description && (
+                  <div style={{ fontSize: '0.82rem', color: '#718096', fontStyle: 'italic', marginTop: '6px', background: '#F7FAFC', padding: '4px 8px', borderRadius: '4px' }}>
+                    {farmer.description}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => handleEdit(farmer)} style={{ background: 'none', border: 'none', color: '#1A6B55', cursor: 'pointer', fontWeight: '600' }}>Edit</button>

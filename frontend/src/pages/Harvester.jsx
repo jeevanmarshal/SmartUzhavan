@@ -232,7 +232,12 @@ const Harvester = () => {
             <InputField english="Date" tamil="தேதி" type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required />
             <SelectField 
               english="Farmer" tamil="விவசாயி" 
-              options={farmers.map(f => ({ value: f._id, label: `${f.name} (${f.village})` }))}
+              options={farmers.map(f => ({ 
+                value: f._id, 
+                label: f.farmerId 
+                  ? `${f.farmerId} - ${f.name} (${f.village})` 
+                  : `${f.name} (${f.village})` 
+              }))}
               value={formData.farmerId}
               onChange={(e) => setFormData({ ...formData, farmerId: e.target.value, linkedLogIds: [] })}
               required

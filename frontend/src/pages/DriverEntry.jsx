@@ -354,7 +354,12 @@ const DriverEntry = ({ userId }) => {
   }));
 
   const driverOptions = drivers.map(d => ({ value: d._id, label: d.name }));
-  const farmerOptions = farmers.map(f => ({ value: f._id, label: `${f.name} (${f.village})` }));
+  const farmerOptions = farmers.map(f => ({ 
+    value: f._id, 
+    label: f.farmerId 
+      ? `${f.farmerId} - ${f.name} (${f.village})` 
+      : `${f.name} (${f.village})` 
+  }));
 
   const logsToDisplay = useMemo(() => {
     if (userId) {
@@ -489,8 +494,19 @@ const DriverEntry = ({ userId }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <strong>{log.billId || 'Unbilled'}</strong> <span style={{ color: '#718096', fontSize: '0.8rem' }}>| {new Date(log.date).toLocaleDateString()}</span>
+                {log.status === 'approved' ? (
+                  <span style={{ marginLeft: '10px', background: '#C6F6D5', color: '#22543D', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>Approved</span>
+                ) : log.status === 'paid' ? (
+                  <span style={{ marginLeft: '10px', background: '#EBF8FF', color: '#2B6CB0', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>Paid</span>
+                ) : (
+                  <span style={{ marginLeft: '10px', background: '#FEFCBF', color: '#744210', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>Unapproved</span>
+                )}
                 <div style={{ fontSize: '0.85rem', color: '#4a5568', marginTop: '5px' }}>
-                  Farmer: {farmers.find(f => f._id === log.farmerId)?.name || 'N/A'} <br/>
+                  Farmer: {farmers.find(f => f._id === log.farmerId) ? (
+                    farmers.find(f => f._id === log.farmerId).farmerId 
+                      ? `${farmers.find(f => f._id === log.farmerId).farmerId} - ${farmers.find(f => f._id === log.farmerId).name} (${farmers.find(f => f._id === log.farmerId).village})`
+                      : `${farmers.find(f => f._id === log.farmerId).name} (${farmers.find(f => f._id === log.farmerId).village})`
+                  ) : 'N/A'} <br/>
                   Driver: {drivers.find(d => d._id === log.driver_id)?.name || 'N/A'} <br/>
                   Machine: {machineTypes[log.machineType]?.en || 'N/A'}
                 </div>

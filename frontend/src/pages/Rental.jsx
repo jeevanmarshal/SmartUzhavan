@@ -151,7 +151,12 @@ const Rental = () => {
           />
           <SelectField 
             english="Farmer" tamil="விவசாயி" 
-            options={farmers.map(f => ({ value: f._id, label: `${f.name} (${f.village})` }))}
+            options={farmers.map(f => ({ 
+              value: f._id, 
+              label: f.farmerId 
+                ? `${f.farmerId} - ${f.name} (${f.village})` 
+                : `${f.name} (${f.village})` 
+            }))}
             value={formData.farmer_id}
             onChange={(e) => setFormData({...formData, farmer_id: e.target.value})}
             required

@@ -109,7 +109,7 @@ function App() {
   return (
     <DataProvider>
       <Router>
-      <header style={{ padding: '10px 15px', background: '#102A43', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="header-left" style={{ display: 'flex', alignItems: 'center' }}>
           <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
         </div>

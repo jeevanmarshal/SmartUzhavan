@@ -4,7 +4,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const http = require('http');
 const socketIo = require('socket.io');
-require('dotenv').config();
+const config = require('./config/env');
 const dns = require('dns');
 
 // Force Google DNS for Atlas SRV resolution
@@ -23,7 +23,7 @@ const server = http.createServer(app);
 // ============================================
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  config.frontendUrl,
   'https://smart-uzhavan.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
@@ -145,14 +145,14 @@ app.use(errorHandler);
 // SERVER STARTUP
 // ============================================
 
-const PORT = process.env.PORT || 5000;
+const PORT = config.port;
 
 const startServer = async () => {
   try {
     await connectDB();
     server.listen(PORT, () => {
       console.log(`✓ SmartUzhavan V6 running on port ${PORT}`);
-      console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`✓ Environment: ${config.nodeEnv}`);
     });
   } catch (error) {
     logger.error(`Failed to start server: ${error.message}`);

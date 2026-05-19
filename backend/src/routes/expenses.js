@@ -63,6 +63,15 @@ router.post('/', authenticateToken, async (req, res, next) => {
     });
 
     await expense.save();
+
+    // Alert Admin if expense is added by a DRIVER (future automation hook)
+    if (req.user.role === 'DRIVER') {
+      const notificationService = require('../services/notificationService');
+      // Fire-and-forget alert (does not block client response)
+      notificationService.alertAdminOnExpense(expense, req.user)
+        .catch(err => console.error('[Expense Notification Error]', err.message));
+    }
+
     return res.success(expense, 'Expense created successfully', 201);
   } catch (error) {
     next(error);

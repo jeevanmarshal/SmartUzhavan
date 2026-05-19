@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
+const config = require('./env');
 
 const connectDB = async () => {
   try {
     console.log('Connecting to MongoDB...');
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    const conn = await mongoose.connect(config.mongodbUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
@@ -13,7 +14,7 @@ const connectDB = async () => {
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
     
     // Create indexes
-    if (process.env.NODE_ENV !== 'test') {
+    if (config.nodeEnv !== 'test') {
       const createIndexes = require('../utils/createIndexes');
       await createIndexes();
     }

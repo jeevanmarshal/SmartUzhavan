@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const config = require('../config/env');
 
 const userSchema = new mongoose.Schema(
   {
@@ -100,8 +101,8 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
 userSchema.methods.generateAuthToken = function () {
   const token = jwt.sign(
     { id: this._id, email: this.email, role: this.role },
-    process.env.JWT_SECRET || 'smartuzhavan-secret-key-2024',
-    { expiresIn: process.env.JWT_EXPIRY || '7d' }
+    config.jwtSecret,
+    { expiresIn: config.jwtExpiry }
   );
   return token;
 };

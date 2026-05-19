@@ -1,0 +1,21 @@
+# SmartUzhavan Frontend - Local Ignores
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Environment Variables
+.env
+.env.development
+.env.production
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.suo

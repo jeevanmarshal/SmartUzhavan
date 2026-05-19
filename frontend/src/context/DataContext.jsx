@@ -19,11 +19,11 @@ export const DataProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (month, year) => {
     try {
       setLoading(true);
       // Fetching from the API service which handles offline fallback internally
-      const data = await apiService.getDashboardSummary();
+      const data = await apiService.getDashboardSummary(month, year);
       if (data) {
         setDashboardSummary(data);
       }

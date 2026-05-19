@@ -129,7 +129,7 @@ export const harvesterService = {
 };
 
 export const financeService = {
-  getSummary: () => api.get('/api/finance/summary'),
+  getSummary: (month, year) => api.get('/api/finance/summary', { params: { month, year } }),
   getAll: () => api.get('/api/finance'),
   create: (data) => api.post('/api/finance', data),
   update: (id, data) => api.put(`/api/finance/${id}`, data),

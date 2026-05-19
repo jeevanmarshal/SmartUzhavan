@@ -13,48 +13,84 @@ const router = express.Router();
 router.get('/summary', authenticateToken, async (req, res, next) => {
   try {
     const HarvesterJob = require('../models/HarvesterJob');
+    const OwnFarmIncome = require('../models/OwnFarmIncome');
+    const Rental = require('../models/Rental');
+    const WorkerRecord = require('../models/WorkerRecord');
+    const DriverLog = require('../models/DriverLog');
     
+    // Parse query filters
+    const { month, year } = req.query;
+    
+    let records = await FinanceLending.find({ isDeleted: false });
+    let jobs = await HarvesterJob.find({ isDeleted: false });
+    let ownFarmIncomes = await OwnFarmIncome.find({ isDeleted: false });
+    let rentals = await Rental.find({ isDeleted: false });
+    let expenses = await Expense.find({ isDeleted: false });
+    let workerRecords = await WorkerRecord.find({ isDeleted: false });
+    let driverLogs = await DriverLog.find({ isDeleted: false });
+
+    if (month && year) {
+      const m = parseInt(month, 10);
+      const y = parseInt(year, 10);
+      
+      const isSameMonthYear = (dateStr) => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        return d.getMonth() + 1 === m && d.getFullYear() === y;
+      };
+
+      records = records.filter(r => isSameMonthYear(r.date));
+      jobs = jobs.filter(j => isSameMonthYear(j.startDate));
+      ownFarmIncomes = ownFarmIncomes.filter(i => isSameMonthYear(i.date));
+      rentals = rentals.filter(r => isSameMonthYear(r.startDate || r.date));
+      expenses = expenses.filter(e => isSameMonthYear(e.date));
+      workerRecords = workerRecords.filter(w => isSameMonthYear(w.date));
+      driverLogs = driverLogs.filter(log => isSameMonthYear(log.date));
+    }
+
     // 1. Get lending income (repayments)
-    const records = await FinanceLending.find({ isDeleted: false });
     const lendingIncome = records.reduce((sum, r) => {
         const paid = (r.payments || []).reduce((pSum, p) => pSum + p.amount, 0);
         return sum + paid;
     }, 0);
 
     // 2. Get harvest income
-    const jobs = await HarvesterJob.find({ isDeleted: false });
     const harvestIncome = jobs.reduce((sum, j) => sum + (j.finalAmount || 0), 0);
 
     // 2.5 Get Own Farm Income
-    const OwnFarmIncome = require('../models/OwnFarmIncome');
-    const ownFarmIncomes = await OwnFarmIncome.find({ isDeleted: false });
     const ownFarmRev = ownFarmIncomes.reduce((sum, i) => sum + (i.total_amount || 0), 0);
 
     // 2.6 Get Rental Revenue
-    const Rental = require('../models/Rental');
-    const rentals = await Rental.find({ isDeleted: false });
     const rentalRev = rentals.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
 
     // 3. Get total expenses (Business Expenses + Lending Outflow)
-    const expenses = await Expense.find({ isDeleted: false });
     const businessExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const generalExpenses = businessExpenses;
     
     const lendingOutflow = records.reduce((sum, r) => sum + (r.amount || 0), 0);
     
     // 3.1 Get Worker Wages
-    const WorkerRecord = require('../models/WorkerRecord');
-    const workerRecords = await WorkerRecord.find({ isDeleted: false });
     const workerWages = workerRecords.reduce((sum, w) => sum + (w.total_amount || 0), 0);
 
     // 3.2 Get Driver Salaries & Job Expenses (Diesel)
-    const DriverLog = require('../models/DriverLog');
-    const driverLogs = await DriverLog.find({ isDeleted: false });
     const driverSalaries = driverLogs.reduce((sum, log) => {
         const paymentsTotal = (log.payments || []).reduce((pSum, p) => pSum + (p.amount || 0), 0);
         return sum + paymentsTotal + (log.advance || 0); // Using payments as actual cash outflow
     }, 0);
     const jobExpenses = driverLogs.reduce((sum, log) => sum + (log.diesel?.totalCost || 0), 0);
+
+    // 4. Calculate pending bills count and outstanding farmer balance from harvester jobs
+    const pendingJobs = jobs.filter(j => {
+      const paid = (j.payments || []).reduce((pSum, p) => pSum + p.amount, 0);
+      return (j.finalAmount || 0) > paid;
+    });
+    const pendingBillsCount = pendingJobs.length;
+
+    const outstandingFarmerBalance = jobs.reduce((sum, j) => {
+      const paid = (j.payments || []).reduce((pSum, p) => pSum + p.amount, 0);
+      const balance = (j.finalAmount || 0) - paid;
+      return sum + (balance > 0 ? balance : 0);
+    }, 0);
 
     const totalExpense = businessExpenses + lendingOutflow + workerWages + driverSalaries + jobExpenses;
     const totalIncome = lendingIncome + harvestIncome + ownFarmRev + rentalRev;
@@ -65,12 +101,15 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
       netProfit: totalIncome - totalExpense,
       lendingIncome,
       harvestIncome,
+      harvesterRev: harvestIncome, // support both naming conventions
       ownFarmRev,
       rentalRev,
       driverSalaries,
       workerWages,
       generalExpenses,
       jobExpenses,
+      pendingBillsCount,
+      outstandingFarmerBalance,
       lastUpdated: new Date()
     }, 'Financial summary retrieved');
   } catch (error) {

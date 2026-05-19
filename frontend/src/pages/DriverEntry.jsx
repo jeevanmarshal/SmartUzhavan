@@ -22,7 +22,7 @@ const DriverEntry = ({ userId }) => {
   const { execute: fetchDrivers } = useAPI(apiService.getDrivers.bind(apiService));
   const { execute: fetchLogs } = useAPI(apiService.getAllDriverSalaries.bind(apiService));
   const { execute: fetchJobs } = useAPI(apiService.getHarvesterJobs.bind(apiService));
-  const { execute: fetchSettings } = useAPI(apiService.getSettings.bind(apiService));
+  const { execute: fetchSettings } = useAPI(apiService.getPricingConfig.bind(apiService));
 
   const [farmers, setFarmers] = useState([]);
   const [allLogs, setLogs] = useState([]);
@@ -66,7 +66,7 @@ const DriverEntry = ({ userId }) => {
       
       setJobs(jData?.data || jData || []);
 
-      const price = sData?.data?.pricing?.diesel?.pricePerLitre || 80;
+      const price = sData?.diesel?.pricePerLitre || sData?.pricing?.diesel?.pricePerLitre || sData?.data?.pricing?.diesel?.pricePerLitre || 80;
       setDieselPrice(price);
       
       if (!editingLog) {
@@ -281,7 +281,9 @@ const DriverEntry = ({ userId }) => {
 
   return (
     <div className="app-container">
-      <h1>ஓட்டுநர் பதிவு (Driver Entry)</h1>
+      <h1 style={{ textAlign: 'center', margin: '0 0 20px 0', fontSize: 'clamp(20px, 5vw, 28px)', lineHeight: '1.4' }}>
+        ஓட்டுநர் பதிவு <br /> (Driver Entry)
+      </h1>
       {success && <div className="success-message">வெற்றிகரமாக சேமிக்கப்பட்டது (Successfully Saved)</div>}
       {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
@@ -293,8 +295,8 @@ const DriverEntry = ({ userId }) => {
             </div>
           ) : null}
           
-          <div style={{ marginBottom: '15px' }}>
-            {!userId ? (
+          {!userId && (
+            <div style={{ marginBottom: '15px' }}>
               <SelectField 
                 english="Driver" tamil="ஓட்டுநர்" 
                 options={driverOptions}
@@ -302,12 +304,8 @@ const DriverEntry = ({ userId }) => {
                 onChange={(e) => handleFieldChange('driver_id', e.target.value)}
                 required
               />
-            ) : (
-              <div style={{ padding: '10px', background: '#EDF2F7', borderRadius: '4px', fontSize: '0.9rem', color: '#4A5568' }}>
-                <strong>Driver:</strong> {drivers.find(d => d._id === userId)?.name || 'N/A'}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
           
           <SelectField 
             english="Machine Type" tamil="இயந்திர வகை"

@@ -99,7 +99,7 @@ export const expenseService = {
 };
 
 export const driverService = {
-  getAll: () => api.get('/api/drivers'),
+  getAll: () => api.get('/api/drivers', { params: { limit: 1000 } }),
   getById: (id) => api.get(`/api/drivers/${id}`),
   create: (data) => api.post('/api/drivers', data),
   update: (id, data) => api.put(`/api/drivers/${id}`, data),
@@ -112,7 +112,7 @@ export const driverService = {
 };
 
 export const farmerService = {
-  getAll: () => api.get('/api/farmers'),
+  getAll: () => api.get('/api/farmers', { params: { limit: 1000 } }),
   getById: (id) => api.get(`/api/farmers/${id}`),
   create: (data) => api.post('/api/farmers', data),
   update: (id, data) => api.put(`/api/farmers/${id}`, data),

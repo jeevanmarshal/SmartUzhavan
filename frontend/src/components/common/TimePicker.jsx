@@ -24,11 +24,11 @@ const TimePicker = ({ label, value, onChange }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <label style={{ fontSize: '0.75rem', color: '#718096', fontWeight: 'bold' }}>{label}</label>
-      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', width: '100%' }}>
         <select 
           value={hStr} 
           onChange={(e) => handleTimeChange(e.target.value, m, ampm)}
-          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #CBD5E0', background: 'white' }}
+          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #CBD5E0', background: 'white', flex: 1, minWidth: '0' }}
         >
           {hourOptions.map(h => <option key={h} value={h}>{h}</option>)}
         </select>
@@ -36,14 +36,14 @@ const TimePicker = ({ label, value, onChange }) => {
         <select 
           value={m} 
           onChange={(e) => handleTimeChange(hStr, e.target.value, ampm)}
-          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #CBD5E0', background: 'white' }}
+          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #CBD5E0', background: 'white', flex: 1, minWidth: '0' }}
         >
           {minuteOptions.map(min => <option key={min} value={min}>{min}</option>)}
         </select>
         <select 
           value={ampm} 
           onChange={(e) => handleTimeChange(hStr, m, e.target.value)}
-          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #CBD5E0', background: '#1B3A6B', color: 'white', fontWeight: 'bold' }}
+          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #CBD5E0', background: '#1B3A6B', color: 'white', fontWeight: 'bold', flex: 1, minWidth: '0' }}
         >
           <option value="AM">AM</option>
           <option value="PM">PM</option>

@@ -109,7 +109,7 @@ function App() {
   return (
     <DataProvider>
       <Router>
-      <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header style={{ padding: '10px 15px', background: '#102A43', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="header-left" style={{ display: 'flex', alignItems: 'center' }}>
           <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
         </div>
@@ -119,7 +119,15 @@ function App() {
         </div>
         
         <div className="header-actions">
-          <div className="user-badge">
+          <div className="user-badge" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Circular Profile Avatar matching the attached image */}
+            <svg width="28" height="28" viewBox="0 0 32 32" style={{ borderRadius: '50%', background: '#ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', display: 'inline-block' }}>
+              <circle cx="16" cy="12" r="5" fill="#e0a96d" />
+              <path d="M11 11c0-2.5 2-4.5 5-4.5s5 2 5 4.5c0 1.5-1 2.5-5 2.5s-5-1-5-2.5z" fill="#5c3d2e" />
+              <path d="M8 26c0-5 3-7 8-7s8 2 8 7H8z" fill="#3a6073" />
+              <path d="M14 19l2 3 2-3z" fill="#ffffff" />
+              <path d="M15.5 20.5l.5 3 .5-3z" fill="#3a7bd5" />
+            </svg>
             <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
               [ {displayRole} : {user.name} ]
             </span>
@@ -127,13 +135,14 @@ function App() {
           <button 
             onClick={handleLogout}
             style={{ 
-              background: 'rgba(255,255,255,0.1)', 
-              border: '1px solid rgba(255,255,255,0.2)', 
+              background: 'transparent', 
+              border: '1.5px solid #ffffff', 
               color: 'white', 
-              padding: '6px 14px', 
-              borderRadius: '6px', 
+              padding: '6px 16px', 
+              borderRadius: '8px', 
               cursor: 'pointer', 
               fontSize: '0.85rem',
+              fontWeight: '500',
               transition: 'all 0.2s'
             }}
           >

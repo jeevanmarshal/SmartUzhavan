@@ -152,6 +152,23 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: flex-end;
 }
 
+/* Hamburger button custom styling */
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+.hamburger-btn:hover {
+  opacity: 0.8;
+}
+
 @media (max-width: 600px) {
   .header-left {
     flex: 0;
@@ -168,10 +185,10 @@ h1, h2, h3, h4, h5, h6 {
     gap: 8px;
   }
   .header-actions > .user-badge {
-    order: 2;
+    order: 1; /* User badge on top matching image */
   }
   .header-actions > button {
-    order: 1;
+    order: 2; /* Logout button on bottom matching image */
   }
 }
 

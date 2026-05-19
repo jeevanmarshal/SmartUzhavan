@@ -163,7 +163,7 @@ const Harvester = () => {
       totalExpense,
       netProfit,
       payments: [],
-      status: 'active'
+      status: 'completed'
     };
 
     try {

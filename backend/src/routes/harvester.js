@@ -118,4 +118,42 @@ router.delete('/:id', authenticateToken, auditLog('DELETE', 'HarvesterJob'), asy
   }
 });
 
+/**
+ * @route   POST /api/harvester/:id/link-logs
+ * @desc    Link driver logs to a harvester job
+ */
+router.post('/:id/link-logs', authenticateToken, async (req, res, next) => {
+  try {
+    const { logIds } = req.body;
+    const jobId = req.params.id;
+
+    const job = await HarvesterJob.findOne({ _id: jobId, isDeleted: false });
+    if (!job) {
+      return res.status(404).error('Harvester job not found', 404);
+    }
+
+    // 1. Update HarvesterJob's linkedLogIds
+    job.linkedLogIds = logIds || [];
+    await job.save();
+
+    // 2. Unlink any driver logs that were previously linked to this job but are not in the new logIds list
+    await DriverLog.updateMany(
+      { linkedJobId: jobId, _id: { $nin: logIds } },
+      { $unset: { linkedJobId: "" } }
+    );
+
+    // 3. Link the new driver logs to this job
+    if (logIds && logIds.length > 0) {
+      await DriverLog.updateMany(
+        { _id: { $in: logIds } },
+        { $set: { linkedJobId: jobId } }
+      );
+    }
+
+    return res.success(job, 'Driver logs linked successfully');
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

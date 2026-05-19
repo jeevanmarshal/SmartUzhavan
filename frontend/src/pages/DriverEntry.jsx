@@ -52,7 +52,7 @@ const DriverEntry = ({ userId }) => {
     machineType: 'harvester_tyre',
     farmerId: '',
     date: new Date().toISOString().split('T')[0],
-    sessions: [{ start: '', end: '', durationHours: 0 }],
+    sessions: [{ start: '09:00', end: '09:00', durationHours: 0 }],
     diesel: { mode: 'none', value: 0, pricePerLitre: 0, total: 0 }
   });
 
@@ -124,7 +124,7 @@ const DriverEntry = ({ userId }) => {
   const addSession = () => {
     setFormData(prev => ({
       ...prev,
-      sessions: [...prev.sessions, { start: '', end: '', durationHours: 0 }]
+      sessions: [...prev.sessions, { start: '09:00', end: '09:00', durationHours: 0 }]
     }));
   };
 
@@ -152,8 +152,24 @@ const DriverEntry = ({ userId }) => {
       return;
     }
     
+    // Map sessions to match the required Mongoose schema names perfectly:
+    const mappedSessions = formData.sessions.map(s => ({
+      startTime: s.start || '09:00',
+      endTime: s.end || '09:00',
+      duration: s.durationHours
+    }));
+
+    const mappedDiesel = {
+      mode: formData.diesel.mode,
+      value: Number(formData.diesel.value) || 0,
+      pricePerLitre: Number(formData.diesel.pricePerLitre) || 0,
+      totalCost: Number(formData.diesel.total) || 0
+    };
+
     const newLog = {
       ...formData,
+      sessions: mappedSessions,
+      diesel: mappedDiesel,
       totalDuration: totalHours,
       source: 'driver_log',
       status: 'submitted'
@@ -193,7 +209,7 @@ const DriverEntry = ({ userId }) => {
         machineType: 'harvester_tyre',
         farmerId: '',
         date: new Date().toISOString().split('T')[0],
-        sessions: [{ start: '', end: '', durationHours: 0 }],
+        sessions: [{ start: '09:00', end: '09:00', durationHours: 0 }],
         diesel: { mode: 'none', value: 0, pricePerLitre: dieselPrice, total: 0 }
       });
 
@@ -206,13 +222,27 @@ const DriverEntry = ({ userId }) => {
 
   const handleEdit = (log) => {
     setEditingLog(log);
+    
+    const mappedSessions = (log.sessions || []).map(s => ({
+      start: s.startTime || s.start || '09:00',
+      end: s.endTime || s.end || '09:00',
+      durationHours: s.duration !== undefined ? s.duration : (s.durationHours || 0)
+    }));
+
+    const mappedDiesel = log.diesel ? {
+      mode: log.diesel.mode || 'none',
+      value: log.diesel.value || 0,
+      pricePerLitre: log.diesel.pricePerLitre || dieselPrice,
+      total: log.diesel.totalCost !== undefined ? log.diesel.totalCost : (log.diesel.total || 0)
+    } : { mode: 'none', value: 0, pricePerLitre: dieselPrice, total: 0 };
+
     setFormData({
-      driver_id: log.driver_id,
+      driver_id: log.driver_id?._id || log.driver_id,
       machineType: log.machineType,
       farmerId: log.farmerId,
       date: new Date(log.date).toISOString().split('T')[0],
-      sessions: log.sessions || [{ start: '', end: '', durationHours: 0 }],
-      diesel: log.diesel || { mode: 'none', value: 0, pricePerLitre: dieselPrice, total: 0 }
+      sessions: mappedSessions.length > 0 ? mappedSessions : [{ start: '09:00', end: '09:00', durationHours: 0 }],
+      diesel: mappedDiesel
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

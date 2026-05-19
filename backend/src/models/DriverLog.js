@@ -45,6 +45,15 @@ const driverLogSchema = new mongoose.Schema({
     ref: 'Driver',
     required: [true, 'Driver ID is required'],
   },
+  farmerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Farmer',
+    required: [true, 'Farmer ID is required'],
+  },
+  machineType: {
+    type: String,
+    required: [true, 'Machine type is required'],
+  },
   date: {
     type: Date,
     required: true,

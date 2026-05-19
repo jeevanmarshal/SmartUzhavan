@@ -12,6 +12,15 @@ import { getHours, getDieselCost } from '../services/calculations';
 import { getDuration } from '../utils/timeUtils';
 import { generateLogBillId } from '../services/billId';
 
+const formatTime12h = (timeStr) => {
+  if (!timeStr) return '';
+  const [h24, m] = timeStr.split(':');
+  let hours = parseInt(h24);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${String(hours).padStart(2, '0')}:${m} ${ampm}`;
+};
+
 const DriverEntry = ({ userId }) => {
   const { data: farmersData } = useRealTime('Farmer', []);
   const { data: driversData } = useRealTime('Driver', []);
@@ -150,6 +159,50 @@ const DriverEntry = ({ userId }) => {
     if (!formData.driver_id) {
       setError('Please select a driver (ஓட்டுநரை தேர்ந்தெடுக்கவும்)');
       return;
+    }
+
+    if (!formData.farmerId) {
+      setError('Please select a farmer (விவசாயியை தேர்ந்தெடுக்கவும்)');
+      return;
+    }
+
+    // Check for duplicate or overlapping sessions
+    const timeToMinutes = (t) => {
+      if (!t) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    for (let i = 0; i < formData.sessions.length; i++) {
+      const sA = formData.sessions[i];
+      if (!sA.start || !sA.end) {
+        setError('அனைத்து வேலை நேரங்களையும் நிரப்பவும் (Please fill in all session times)');
+        return;
+      }
+      
+      const startA = timeToMinutes(sA.start);
+      const endA = timeToMinutes(sA.end);
+      
+      if (endA <= startA) {
+        setError(`வேலை நேரம் ${i + 1}-ல் முடிவு நேரம் தொடக்க நேரத்திற்கு பின் இருக்க வேண்டும் (End time must be after start time for Session ${i + 1})`);
+        return;
+      }
+
+      for (let j = i + 1; j < formData.sessions.length; j++) {
+        const sB = formData.sessions[j];
+        const startB = timeToMinutes(sB.start);
+        const endB = timeToMinutes(sB.end);
+
+        if (startA === startB && endA === endB) {
+          setError('ஒரே மாதிரியான வேலை நேரங்கள் நகலெடுக்கப்பட்டுள்ளன. தயவுசெய்து மாற்றவும். (Duplicate sessions entered. Please modify or remove duplicates.)');
+          return;
+        }
+
+        if (startA < endB && startB < endA) {
+          setError('வேலை நேரங்கள் ஒன்றுடன் ஒன்று பொருந்துகின்றன. தயவுசெய்து திருத்தவும். (Sessions overlap with each other. Please correct.)');
+          return;
+        }
+      }
     }
     
     // Map sessions to match the required Mongoose schema names perfectly:
@@ -437,13 +490,27 @@ const DriverEntry = ({ userId }) => {
               <div>
                 <strong>{log.billId || 'Unbilled'}</strong> <span style={{ color: '#718096', fontSize: '0.8rem' }}>| {new Date(log.date).toLocaleDateString()}</span>
                 <div style={{ fontSize: '0.85rem', color: '#4a5568', marginTop: '5px' }}>
-                  Farmer: {farmers.find(f => f._id === log.farmerId)?.name} <br/>
-                  Driver: {drivers.find(d => d._id === log.driver_id)?.name} <br/>
-                  Machine: {machineTypes[log.machineType]?.en}
+                  Farmer: {farmers.find(f => f._id === log.farmerId)?.name || 'N/A'} <br/>
+                  Driver: {drivers.find(d => d._id === log.driver_id)?.name || 'N/A'} <br/>
+                  Machine: {machineTypes[log.machineType]?.en || 'N/A'}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ color: '#1A6B55', fontWeight: 'bold', fontSize: '1.1rem' }}>{(log.totalDuration || 0).toFixed(2)} Hrs</div>
+              </div>
+            </div>
+            
+            <div style={{ marginTop: '10px', padding: '8px 12px', background: '#F7FAFC', borderRadius: '6px', borderLeft: '3px solid #3182CE' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#2B6CB0', marginBottom: '4px' }}>
+                வேலை நேரங்கள் (Work Session Timings):
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {(log.sessions || []).map((s, idx) => (
+                  <div key={idx} style={{ fontSize: '0.78rem', color: '#4A5568', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>அமர்வு (Session) {idx + 1}: <strong>{formatTime12h(s.startTime || s.start)}</strong> - <strong>{formatTime12h(s.endTime || s.end)}</strong></span>
+                    <span style={{ fontWeight: '600', color: '#4A5568' }}>{(s.duration || s.durationHours || 0).toFixed(2)} Hrs</span>
+                  </div>
+                ))}
               </div>
             </div>
             

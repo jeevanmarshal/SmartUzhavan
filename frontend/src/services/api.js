@@ -187,6 +187,7 @@ export const apiService = {
   createHarvesterJob: harvesterService.create,
   updateHarvesterJob: harvesterService.update,
   deleteHarvesterJob: harvesterService.delete,
+  linkLogs: harvesterService.linkLogs,
   
   // Expenses
   getExpenses: expenseService.getAll,

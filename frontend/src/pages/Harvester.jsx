@@ -149,7 +149,7 @@ const Harvester = () => {
       return;
     }
 
-    const billId = generateBillId(formData.season, formData.seasonYear, jobs);
+    const billId = generateBillId(formData.season, formData.seasonYear, allJobs);
     const jobRecord = {
       ...formData,
       farmer_id: formData.farmerId,
@@ -171,7 +171,7 @@ const Harvester = () => {
       const createdJob = createdJobRes.data || createdJobRes;
       
       // Use the unified service method for linking logs
-      await harvesterService.linkLogs(createdJob._id, formData.linkedLogIds);
+      await apiService.linkLogs(createdJob._id, formData.linkedLogIds);
       
       await refreshData();
       

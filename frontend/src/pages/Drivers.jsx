@@ -222,7 +222,7 @@ const Drivers = ({ userId }) => {
   return (
     <div className="app-container">
       {!userId && (
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <div className="tab-container">
           <button onClick={() => setActiveTab('tab1')} style={{ flex: 1, padding: '10px', background: activeTab === 'tab1' ? '#1B3A6B' : '#EDF2F7', color: activeTab === 'tab1' ? 'white' : 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Drivers (ஓட்டுநர்கள்)</button>
           <button onClick={() => setActiveTab('tab2')} style={{ flex: 1, padding: '10px', background: activeTab === 'tab2' ? '#1B3A6B' : '#EDF2F7', color: activeTab === 'tab2' ? 'white' : 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Salary (சம்பளம்)</button>
         </div>
@@ -233,7 +233,7 @@ const Drivers = ({ userId }) => {
 
       {activeTab === 'tab1' && !userId && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div className="page-header">
             <h2 style={{margin: 0}}>Drivers Master</h2>
             {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ Add Driver</Button>}
           </div>
@@ -282,7 +282,7 @@ const Drivers = ({ userId }) => {
 
       {activeTab === 'tab2' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div className="page-header">
             <h2 style={{margin: 0}}>{userId ? 'My Salary' : 'Driver Salary'}</h2>
             {!showAddSalary && !userId && <Button onClick={() => setShowAddSalary(true)}>+ New Salary Entry</Button>}
           </div>

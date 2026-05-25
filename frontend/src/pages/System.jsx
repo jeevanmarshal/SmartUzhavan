@@ -17,7 +17,7 @@ const System = () => {
 
   return (
     <div className="app-container">
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      <div className="tab-container">
         <button 
           onClick={() => setActiveTab('price')} 
           style={{ flex: 1, padding: '10px', background: activeTab === 'price' ? '#1B3A6B' : '#EDF2F7', color: activeTab === 'price' ? 'white' : 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}

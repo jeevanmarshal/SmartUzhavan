@@ -97,7 +97,7 @@ const Farmers = () => {
 
   return (
     <div className="app-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div className="page-header">
         <h1>விவசாயிகள் (Farmers Master)</h1>
         {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ Add Farmer</Button>}
       </div>

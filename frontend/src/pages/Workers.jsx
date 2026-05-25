@@ -199,7 +199,7 @@ const Workers = () => {
 
   return (
     <div className="app-container">
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      <div className="tab-container">
         <button onClick={() => setActiveTab('tab1')} style={{ flex: 1, padding: '10px', background: activeTab === 'tab1' ? '#1B3A6B' : '#EDF2F7', color: activeTab === 'tab1' ? 'white' : 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Workers (வேலையாட்கள்)</button>
         <button onClick={() => setActiveTab('tab2')} style={{ flex: 1, padding: '10px', background: activeTab === 'tab2' ? '#1B3A6B' : '#EDF2F7', color: activeTab === 'tab2' ? 'white' : 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Work Records (வேலை பதிவு)</button>
       </div>
@@ -209,7 +209,7 @@ const Workers = () => {
 
       {activeTab === 'tab1' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div className="page-header">
             <h2 style={{margin: 0}}>Workers</h2>
             {!showAddWorker && <Button onClick={() => setShowAddWorker(true)}>+ Add Worker</Button>}
           </div>
@@ -249,7 +249,7 @@ const Workers = () => {
 
       {activeTab === 'tab2' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div className="page-header">
             <h2 style={{margin: 0}}>Work Records</h2>
             {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ New Entry</Button>}
           </div>

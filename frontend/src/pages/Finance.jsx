@@ -89,14 +89,14 @@ const Finance = () => {
 
   return (
     <div className="app-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div className="page-header">
         <h1>நிதியியல் பதிவேடு (Finance Ledger)</h1>
         {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ New Entry</Button>}
       </div>
 
       {error && <div style={{ color: '#C53030', background: '#FFF5F5', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      <div className="tab-container">
         <button 
           onClick={() => setActiveTab('lending')}
           style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: activeTab === 'lending' ? '#1B3A6B' : '#E2E8F0', color: activeTab === 'lending' ? 'white' : '#4A5568', fontWeight: 'bold', cursor: 'pointer' }}

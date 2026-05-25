@@ -132,7 +132,7 @@ const Rental = () => {
 
   return (
     <div className="app-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div className="page-header">
         <h1>இயந்திர வாடகை (Machinery Rental)</h1>
         {!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ New Entry</Button>}
       </div>

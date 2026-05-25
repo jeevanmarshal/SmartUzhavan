@@ -109,7 +109,7 @@ function App() {
   return (
     <DataProvider>
       <Router>
-      <header style={{ padding: '10px 15px', background: '#1B3A6B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header className="main-header">
         <div className="header-left" style={{ display: 'flex', alignItems: 'center' }}>
           <button className="hamburger-btn" onClick={toggleMenu}>☰</button>
         </div>
@@ -120,24 +120,11 @@ function App() {
         
         <div className="header-actions">
           <div className="user-badge">
-            <span style={{ fontWeight: '600', color: '#E2E8F0', padding: '4px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+            <span className="user-badge-text">
               [ {displayRole} : {user.name} ]
             </span>
           </div>
-          <button 
-            onClick={handleLogout}
-            style={{ 
-              background: 'transparent', 
-              border: '1.5px solid #ffffff', 
-              color: 'white', 
-              padding: '6px 16px', 
-              borderRadius: '8px', 
-              cursor: 'pointer', 
-              fontSize: '0.85rem',
-              fontWeight: '500',
-              transition: 'all 0.2s'
-            }}
-          >
+          <button onClick={handleLogout} className="logout-btn">
             Logout
           </button>
         </div>

@@ -60,7 +60,7 @@ const Settings = () => {
         </p>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="flex-group-responsive">
             <input 
               type="password" 
               placeholder="New Admin Password" 
@@ -100,7 +100,7 @@ const Settings = () => {
           value={selectedDriverId}
           onChange={(e) => setSelectedDriverId(e.target.value)}
         />
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '10px' }}>
+        <div className="flex-group-responsive" style={{ marginTop: '10px' }}>
            <input 
              type="password" 
              placeholder="New 4-digit PIN" 
